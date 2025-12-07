@@ -64,7 +64,7 @@ export function ApiConfigAccordion({
                 <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900/70 backdrop-blur-md border-zinc-700">
+                <SelectContent className="bg-zinc-900/70 backdrop-blur-md border-zinc-700 text-white">
                   <SelectItem value="gitee">Gitee AI</SelectItem>
                   <SelectItem value="hf-zimage">HF Z-Image Turbo</SelectItem>
                   <SelectItem value="hf-qwen">HF Qwen Image</SelectItem>
