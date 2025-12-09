@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { encryptAndStore, decryptFromStore } from "@/lib/crypto";
+import {
+  encryptAndStore,
+  decryptFromStore,
+  encryptAndStoreHfToken,
+  decryptHfTokenFromStore,
+} from "@/lib/crypto";
 import { toast } from "sonner";
 import {
   type ApiProvider,
@@ -14,13 +19,13 @@ export function useImageGenerator() {
   const [apiKey, setApiKey] = useState("");
   const [hfToken, setHfToken] = useState("");
   const [apiProvider, setApiProvider] = useState<ApiProvider>(
-    () => loadSettings().apiProvider ?? "gitee"
+    () => loadSettings().apiProvider ?? "gitee",
   );
   const [prompt, setPrompt] = useState(
-    () => loadSettings().prompt ?? DEFAULT_PROMPT
+    () => loadSettings().prompt ?? DEFAULT_PROMPT,
   );
   const [negativePrompt, setNegativePrompt] = useState(
-    () => loadSettings().negativePrompt ?? DEFAULT_NEGATIVE_PROMPT
+    () => loadSettings().negativePrompt ?? DEFAULT_NEGATIVE_PROMPT,
   );
   const [model] = useState("z-image-turbo");
   const [width, setWidth] = useState(() => loadSettings().width ?? 1024);
@@ -28,18 +33,18 @@ export function useImageGenerator() {
   const [steps, setSteps] = useState(() => loadSettings().steps ?? 9);
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(() =>
-    localStorage.getItem("lastImageUrl")
+    localStorage.getItem("lastImageUrl"),
   );
   const [status, setStatus] = useState("Ready.");
   const [elapsed, setElapsed] = useState(0);
   const [selectedRatio, setSelectedRatio] = useState(
-    () => loadSettings().selectedRatio ?? "1:1"
+    () => loadSettings().selectedRatio ?? "1:1",
   );
   const [uhd, setUhd] = useState(() => loadSettings().uhd ?? false);
   const [upscale8k] = useState(() => loadSettings().upscale8k ?? false);
   const [showInfo, setShowInfo] = useState(false);
   const [isBlurred, setIsBlurred] = useState(
-    () => localStorage.getItem("isBlurred") === "true"
+    () => localStorage.getItem("isBlurred") === "true",
   );
   const [isUpscaled, setIsUpscaled] = useState(false);
   const [isUpscaling, setIsUpscaling] = useState(false);
@@ -49,47 +54,7 @@ export function useImageGenerator() {
     if (!initialized.current) {
       initialized.current = true;
       decryptFromStore().then(setApiKey);
-      const stored = localStorage.getItem("hfToken");
-      if (stored) {
-        try {
-          const { iv, data } = JSON.parse(stored);
-          crypto.subtle
-            .importKey(
-              "raw",
-              new TextEncoder().encode(navigator.userAgent),
-              "PBKDF2",
-              false,
-              ["deriveKey"]
-            )
-            .then((key) =>
-              crypto.subtle.deriveKey(
-                {
-                  name: "PBKDF2",
-                  salt: new TextEncoder().encode("hf-salt"),
-                  iterations: 100000,
-                  hash: "SHA-256",
-                },
-                key,
-                { name: "AES-GCM", length: 256 },
-                false,
-                ["decrypt"]
-              )
-            )
-            .then((derivedKey) =>
-              crypto.subtle.decrypt(
-                { name: "AES-GCM", iv: new Uint8Array(iv) },
-                derivedKey,
-                new Uint8Array(data)
-              )
-            )
-            .then((decrypted) =>
-              setHfToken(new TextDecoder().decode(decrypted))
-            )
-            .catch(() => localStorage.removeItem("hfToken"));
-        } catch {
-          localStorage.removeItem("hfToken");
-        }
-      }
+      decryptHfTokenFromStore().then(setHfToken);
     }
   }, []);
 
@@ -107,7 +72,17 @@ export function useImageGenerator() {
         apiProvider,
       });
     }
-  }, [prompt, negativePrompt, width, height, steps, selectedRatio, uhd, upscale8k, apiProvider]);
+  }, [
+    prompt,
+    negativePrompt,
+    width,
+    height,
+    steps,
+    selectedRatio,
+    uhd,
+    upscale8k,
+    apiProvider,
+  ]);
 
   useEffect(() => {
     if (imageUrl) {
@@ -136,42 +111,9 @@ export function useImageGenerator() {
 
   const saveHfToken = async (token: string) => {
     setHfToken(token);
+    await encryptAndStoreHfToken(token);
     if (token) {
-      const key = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(navigator.userAgent),
-        "PBKDF2",
-        false,
-        ["deriveKey"]
-      );
-      const derivedKey = await crypto.subtle.deriveKey(
-        {
-          name: "PBKDF2",
-          salt: new TextEncoder().encode("hf-salt"),
-          iterations: 100000,
-          hash: "SHA-256",
-        },
-        key,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["encrypt"]
-      );
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encrypted = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        derivedKey,
-        new TextEncoder().encode(token)
-      );
-      localStorage.setItem(
-        "hfToken",
-        JSON.stringify({
-          iv: Array.from(iv),
-          data: Array.from(new Uint8Array(encrypted)),
-        })
-      );
       toast.success("HF Token saved");
-    } else {
-      localStorage.removeItem("hfToken");
     }
   };
 
@@ -218,7 +160,7 @@ export function useImageGenerator() {
             ...(hfToken && { "X-HF-Token": hfToken }),
           },
           body: JSON.stringify({ url: imageUrl, scale: 4 }),
-        }
+        },
       );
       const data = await res.json();
       if (res.ok && data.url) {
@@ -232,7 +174,7 @@ export function useImageGenerator() {
       }
     } catch (err) {
       addStatus(
-        `Upscale failed: ${err instanceof Error ? err.message : "Unknown error"}`
+        `Upscale failed: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
       toast.error("Upscale failed");
     } finally {
@@ -282,7 +224,7 @@ export function useImageGenerator() {
               height,
               num_inference_steps: steps,
             }),
-          }
+          },
         );
 
         const data = await res.json();
@@ -309,7 +251,7 @@ export function useImageGenerator() {
               height,
               model: apiProvider === "hf-qwen" ? "qwen" : "zimage",
             }),
-          }
+          },
         );
 
         const data = await res.json();
@@ -332,7 +274,7 @@ export function useImageGenerator() {
                 ...(hfToken && { "X-HF-Token": hfToken }),
               },
               body: JSON.stringify({ url: generatedUrl, scale: 4 }),
-            }
+            },
           );
 
           const upData = await upRes.json();
@@ -345,7 +287,7 @@ export function useImageGenerator() {
           }
         } catch (upErr) {
           addStatus(
-            `8K upscale failed: ${upErr instanceof Error ? upErr.message : "Unknown error"}`
+            `8K upscale failed: ${upErr instanceof Error ? upErr.message : "Unknown error"}`,
           );
           toast.error("8K upscale failed, showing original image");
         }

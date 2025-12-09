@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { ImageIcon, Sparkles, Zap, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ASPECT_RATIOS } from "@/lib/constants";
-import { loadFlowInputSettings, saveFlowInputSettings } from "@/lib/flow-storage";
+import {
+  loadFlowInputSettings,
+  saveFlowInputSettings,
+} from "@/lib/flow-storage";
 
 interface FloatingInputProps {
   onSubmit: (config: {
@@ -12,9 +15,13 @@ interface FloatingInputProps {
     batchCount: number;
     seed: number;
   }) => void;
+  providerLabel: string;
 }
 
-export default function FloatingInput({ onSubmit }: FloatingInputProps) {
+export default function FloatingInput({
+  onSubmit,
+  providerLabel,
+}: FloatingInputProps) {
   const [aspectRatioIndex, setAspectRatioIndex] = useState(0);
   const [resolutionIndex, setResolutionIndex] = useState(0); // 0=1K, 1=2K - independent of aspect ratio
   const [prompt, setPrompt] = useState("");
@@ -67,7 +74,6 @@ export default function FloatingInput({ onSubmit }: FloatingInputProps) {
     });
   };
 
-
   const cycleAspectRatio = () => {
     setAspectRatioIndex((prev) => (prev + 1) % ASPECT_RATIOS.length);
     // Don't reset resolutionIndex - keep it independent
@@ -103,7 +109,9 @@ export default function FloatingInput({ onSubmit }: FloatingInputProps) {
             onClick={cycleResolution}
             className="bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-full px-3 py-0.5 text-xs font-normal cursor-pointer"
           >
-            {currentResolution.w >= 2048 || currentResolution.h >= 2048 ? "2K" : "1K"}
+            {currentResolution.w >= 2048 || currentResolution.h >= 2048
+              ? "2K"
+              : "1K"}
           </Badge>
           <Badge
             variant="secondary"
@@ -138,7 +146,7 @@ export default function FloatingInput({ onSubmit }: FloatingInputProps) {
               <span className="text-zinc-500 font-medium">图片生成模式</span>
               <span className="h-3 w-px bg-zinc-700 mx-1"></span>
               <Sparkles size={14} className="text-yellow-500" />
-              <span>Gitee AI</span>
+              <span>{providerLabel}</span>
             </div>
           </div>
 

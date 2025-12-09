@@ -16,13 +16,19 @@ import {
 import "@xyflow/react/dist/style.css";
 import { ArrowLeft, Settings, X, Download, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { encryptAndStore, decryptFromStore } from "@/lib/crypto";
+import {
+  encryptAndStore,
+  decryptFromStore,
+  encryptAndStoreHfToken,
+  decryptHfTokenFromStore,
+} from "@/lib/crypto";
 import {
   loadFlowState,
   saveFlowState,
   clearFlowState,
   type GeneratedImage,
 } from "@/lib/flow-storage";
+import { loadSettings, saveSettings, type ApiProvider } from "@/lib/constants";
 import UserPromptNode, {
   type UserPromptNodeData,
 } from "@/components/flow/UserPromptNode";
@@ -31,6 +37,7 @@ import AIResultNode, {
 } from "@/components/flow/AIResultNode";
 import { getLayoutedElements } from "@/components/flow/layout";
 import FloatingInput from "@/components/flow/FloatingInput";
+import { ApiConfigAccordion } from "@/components/feature/ApiConfigAccordion";
 
 const nodeTypes = {
   userPrompt: UserPromptNode,
@@ -41,6 +48,10 @@ function FlowCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [apiKey, setApiKey] = useState("");
+  const [hfToken, setHfToken] = useState("");
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(
+    () => loadSettings().apiProvider ?? "gitee",
+  );
   const [showSettings, setShowSettings] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const nodeIdRef = useRef(0);
@@ -63,11 +74,11 @@ function FlowCanvas() {
                   duration: image.duration,
                 },
               }
-            : node
-        )
+            : node,
+        ),
       );
     },
-    [setNodes]
+    [setNodes],
   );
 
   // Auto-save when nodes/edges/images change
@@ -132,6 +143,7 @@ function FlowCanvas() {
 
   useEffect(() => {
     decryptFromStore().then((key) => setApiKey(key || ""));
+    decryptHfTokenFromStore().then((token) => setHfToken(token || ""));
   }, []);
 
   const saveApiKey = async (key: string) => {
@@ -139,9 +151,19 @@ function FlowCanvas() {
     setApiKey(key);
   };
 
+  const saveHfToken = async (token: string) => {
+    setHfToken(token);
+    await encryptAndStoreHfToken(token);
+  };
+
+  const updateSettings = (patch: Partial<Record<string, unknown>>) => {
+    const prev = loadSettings();
+    saveSettings({ ...prev, ...patch });
+  };
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    [setEdges],
   );
 
   const handleDownloadAll = async () => {
@@ -216,7 +238,12 @@ function FlowCanvas() {
             width: config.width,
             height: config.height,
             aspectRatio,
-            model: "Gitee AI",
+            model:
+              apiProvider === "gitee"
+                ? "Gitee AI"
+                : apiProvider === "hf-qwen"
+                  ? "HF Qwen Image"
+                  : "HF Z-Image Turbo",
             seed: config.seed + i,
             onImageGenerated: handleImageGenerated,
           } as AIResultNodeData,
@@ -238,7 +265,15 @@ function FlowCanvas() {
       setEdges(layoutedEdges);
       setTimeout(() => fitView({ padding: 0.2, duration: 500 }), 100);
     },
-    [nodes, edges, setNodes, setEdges, fitView, handleImageGenerated]
+    [
+      nodes,
+      edges,
+      setNodes,
+      setEdges,
+      fitView,
+      handleImageGenerated,
+      apiProvider,
+    ],
   );
 
   return (
@@ -295,8 +330,10 @@ function FlowCanvas() {
             className="flex items-center gap-2 px-3 py-1.5 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
           >
             <Settings className="w-4 h-4" />
-            <span className="text-sm">API Key</span>
-            {apiKey && <span className="w-2 h-2 bg-green-500 rounded-full" />}
+            <span className="text-sm">API</span>
+            {(apiKey || hfToken) && (
+              <span className="w-2 h-2 bg-green-500 rounded-full" />
+            )}
           </button>
         </div>
       </div>
@@ -313,25 +350,33 @@ function FlowCanvas() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <label className="block text-zinc-400 text-sm mb-2">
-              Gitee AI API Key
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              onBlur={(e) => saveApiKey(e.target.value)}
-              placeholder="Enter your Gitee AI API Key..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700"
+            <ApiConfigAccordion
+              apiKey={apiKey}
+              hfToken={hfToken}
+              apiProvider={apiProvider}
+              setApiKey={setApiKey}
+              setHfToken={setHfToken}
+              setApiProvider={(provider) => {
+                setApiProvider(provider);
+                updateSettings({ apiProvider: provider });
+              }}
+              saveApiKey={saveApiKey}
+              saveHfToken={saveHfToken}
             />
-            <p className="text-zinc-500 text-xs mt-2">
-              Key is encrypted and stored locally (shared with home page).
-            </p>
           </div>
         </div>
       )}
 
-      <FloatingInput onSubmit={addNode} />
+      <FloatingInput
+        onSubmit={addNode}
+        providerLabel={
+          apiProvider === "gitee"
+            ? "Gitee AI"
+            : apiProvider === "hf-qwen"
+              ? "HF Qwen Image"
+              : "HF Z-Image Turbo"
+        }
+      />
     </div>
   );
 }
