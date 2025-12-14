@@ -23,9 +23,9 @@ export type { ProviderType, AspectRatioConfig, LLMProviderType }
 export { PROVIDER_CONFIGS, MODEL_CONFIGS, getModelsByProvider, LLM_PROVIDER_CONFIGS }
 export { DEFAULT_OPTIMIZE_SYSTEM_PROMPT }
 
-// Environment defaults
-export const DEFAULT_PROMPT = import.meta.env.VITE_DEFAULT_PROMPT
-export const DEFAULT_NEGATIVE_PROMPT = import.meta.env.VITE_DEFAULT_NEGATIVE_PROMPT
+// Environment defaults (with fallbacks to prevent undefined)
+export const DEFAULT_PROMPT = import.meta.env.VITE_DEFAULT_PROMPT ?? ''
+export const DEFAULT_NEGATIVE_PROMPT = import.meta.env.VITE_DEFAULT_NEGATIVE_PROMPT ?? ''
 
 // Aspect ratios with icons for UI
 const ASPECT_RATIO_ICONS = {
@@ -129,7 +129,13 @@ export function loadLLMSettings(): LLMSettings {
     const saved = localStorage.getItem(LLM_SETTINGS_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
-      return { ...DEFAULT_LLM_SETTINGS, ...parsed }
+      // Ensure all fields have proper default values (handle undefined/null from old data)
+      return {
+        llmProvider: parsed.llmProvider ?? DEFAULT_LLM_SETTINGS.llmProvider,
+        llmModel: parsed.llmModel ?? DEFAULT_LLM_SETTINGS.llmModel,
+        autoTranslate: parsed.autoTranslate ?? DEFAULT_LLM_SETTINGS.autoTranslate,
+        customSystemPrompt: parsed.customSystemPrompt ?? DEFAULT_LLM_SETTINGS.customSystemPrompt,
+      }
     }
   } catch {
     // Ignore parse errors
@@ -145,7 +151,7 @@ export function saveLLMSettings(settings: Partial<LLMSettings>): void {
 }
 
 /** Get the effective system prompt (custom or default) */
-export function getEffectiveSystemPrompt(customPrompt: string): string {
-  const trimmed = customPrompt.trim()
+export function getEffectiveSystemPrompt(customPrompt: string | undefined | null): string {
+  const trimmed = (customPrompt ?? '').trim()
   return trimmed || DEFAULT_OPTIMIZE_SYSTEM_PROMPT
 }

@@ -40,7 +40,7 @@ export function LLMSettingsAccordion({
   setCustomSystemPrompt,
 }: LLMSettingsAccordionProps) {
   const availableModels = getLLMModels(llmSettings.llmProvider)
-  const hasCustomPrompt = llmSettings.customSystemPrompt.trim() !== ''
+  const hasCustomPrompt = (llmSettings.customSystemPrompt ?? '').trim() !== ''
 
   const handleResetSystemPrompt = () => {
     setCustomSystemPrompt('')
