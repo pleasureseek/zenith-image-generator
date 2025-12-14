@@ -56,7 +56,12 @@
     "optional": "（可选）",
     "free": "（免费）",
     "tokenPlaceholder": "输入你的 {{provider}} API 令牌...",
-    "optionalQuota": "可选：获取更多配额..."
+    "optionalQuota": "可选：获取更多配额...",
+    "multiTokenHint": "提示：输入多个令牌（用逗号分隔）可实现自动轮换",
+    "tokenStats": "令牌",
+    "totalTokens": "共 {{count}} 个",
+    "activeTokens": "{{count}} 个可用",
+    "exhaustedTokens": "{{count}} 个已耗尽"
   },
   "status": {
     "title": "状态",
@@ -96,7 +101,9 @@
     "config": "配置",
     "enterPrompt": "输入提示词...",
     "doubleClickEdit": "双击编辑",
-    "doubleClickEnlarge": "双击放大"
+    "doubleClickEnlarge": "双击放大",
+    "deleteConfigConfirm": "删除此配置及其所有图片？",
+    "deleteImageConfirm": "删除此图片？"
   },
   "storage": {
     "limitReached": "存储空间已满",

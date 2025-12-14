@@ -1,5 +1,7 @@
 import type { ModelConfig } from '@z-image/shared'
 import { Settings } from 'lucide-react'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Accordion,
   AccordionContent,
@@ -16,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PROVIDER_CONFIGS, PROVIDER_OPTIONS, type ProviderType } from '@/lib/constants'
+import { getTokenStats, parseTokens } from '@/lib/tokenRotation'
 
 interface ApiConfigAccordionProps {
   provider: ProviderType
@@ -36,8 +39,14 @@ export function ApiConfigAccordion({
   setModel,
   saveToken,
 }: ApiConfigAccordionProps) {
+  const { t } = useTranslation()
   const providerConfig = PROVIDER_CONFIGS[provider]
-  const isConfigured = !providerConfig.requiresAuth || currentToken
+
+  // Parse tokens and get stats
+  const tokens = useMemo(() => parseTokens(currentToken), [currentToken])
+  const stats = useMemo(() => getTokenStats(provider, tokens), [provider, tokens])
+
+  const isConfigured = !providerConfig.requiresAuth || tokens.length > 0
 
   return (
     <Accordion
@@ -49,15 +58,17 @@ export function ApiConfigAccordion({
         <AccordionTrigger className="text-zinc-300 hover:no-underline">
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
-            <span>API Configuration</span>
-            {isConfigured && <span className="text-xs text-green-500">● Ready</span>}
+            <span>{t('apiConfig.title')}</span>
+            {isConfigured && (
+              <span className="text-xs text-green-500">● {t('apiConfig.ready')}</span>
+            )}
           </div>
         </AccordionTrigger>
         <AccordionContent>
           <div className="space-y-3 pb-2">
             {/* Provider Selection */}
             <div>
-              <Label className="text-zinc-400 text-xs">Provider</Label>
+              <Label className="text-zinc-400 text-xs">{t('apiConfig.provider')}</Label>
               <Select value={provider} onValueChange={(v) => setProvider(v as ProviderType)}>
                 <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100">
                   <SelectValue />
@@ -67,7 +78,7 @@ export function ApiConfigAccordion({
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                       {!opt.requiresAuth && (
-                        <span className="ml-2 text-xs text-green-500">(Free)</span>
+                        <span className="ml-2 text-xs text-green-500">{t('apiConfig.free')}</span>
                       )}
                     </SelectItem>
                   ))}
@@ -77,7 +88,7 @@ export function ApiConfigAccordion({
 
             {/* Model Selection */}
             <div>
-              <Label className="text-zinc-400 text-xs">Model</Label>
+              <Label className="text-zinc-400 text-xs">{t('apiConfig.model')}</Label>
               <Select value={model} onValueChange={setModel}>
                 <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100">
                   <SelectValue />
@@ -95,22 +106,42 @@ export function ApiConfigAccordion({
             {/* Token Input */}
             <div>
               <Label className="text-zinc-400 text-xs">
-                {providerConfig.name} Token
-                {!providerConfig.requiresAuth && ' (Optional)'}
+                {t('apiConfig.token', { provider: providerConfig.name })}
+                {!providerConfig.requiresAuth && ` ${t('apiConfig.optional')}`}
               </Label>
               <Input
                 type="password"
                 placeholder={
                   providerConfig.requiresAuth
-                    ? `Enter your ${providerConfig.name} API token...`
-                    : 'Optional: for extra quota...'
+                    ? t('apiConfig.tokenPlaceholder', { provider: providerConfig.name })
+                    : t('apiConfig.optionalQuota')
                 }
                 value={currentToken}
                 onChange={(e) => saveToken(provider, e.target.value)}
                 onBlur={(e) => saveToken(provider, e.target.value)}
                 className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
               />
+              {/* Token hint */}
+              <p className="mt-1 text-[10px] text-zinc-500">{t('apiConfig.multiTokenHint')}</p>
             </div>
+
+            {/* Token Stats */}
+            {stats.total > 0 && (
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-zinc-500">{t('apiConfig.tokenStats')}:</span>
+                <span className="text-zinc-400">
+                  {t('apiConfig.totalTokens', { count: stats.total })}
+                </span>
+                <span className="text-green-500">
+                  {t('apiConfig.activeTokens', { count: stats.active })}
+                </span>
+                {stats.exhausted > 0 && (
+                  <span className="text-red-400">
+                    {t('apiConfig.exhaustedTokens', { count: stats.exhausted })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </AccordionContent>
       </AccordionItem>

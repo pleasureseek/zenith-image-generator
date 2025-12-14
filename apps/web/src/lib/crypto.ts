@@ -1,9 +1,13 @@
 import type { ProviderType } from './constants'
 
-const TOKEN_STORAGE_KEYS: Record<ProviderType, string> = {
+/** Token provider type (extends ProviderType with DeepSeek for LLM) */
+export type TokenProvider = ProviderType | 'deepseek'
+
+const TOKEN_STORAGE_KEYS: Record<TokenProvider, string> = {
   gitee: 'giteeToken',
   huggingface: 'hfToken',
   modelscope: 'msToken',
+  deepseek: 'deepseekToken',
 }
 
 async function getKey(): Promise<CryptoKey> {
@@ -32,7 +36,7 @@ async function getKey(): Promise<CryptoKey> {
   )
 }
 
-export async function encryptAndStoreToken(provider: ProviderType, token: string): Promise<void> {
+export async function encryptAndStoreToken(provider: TokenProvider, token: string): Promise<void> {
   const storageKey = TOKEN_STORAGE_KEYS[provider]
   if (!token) {
     localStorage.removeItem(storageKey)
@@ -52,7 +56,7 @@ export async function encryptAndStoreToken(provider: ProviderType, token: string
   localStorage.setItem(storageKey, data)
 }
 
-export async function decryptTokenFromStore(provider: ProviderType): Promise<string> {
+export async function decryptTokenFromStore(provider: TokenProvider): Promise<string> {
   const storageKey = TOKEN_STORAGE_KEYS[provider]
   const stored = localStorage.getItem(storageKey)
   if (!stored) return ''
@@ -71,14 +75,43 @@ export async function decryptTokenFromStore(provider: ProviderType): Promise<str
   }
 }
 
-export async function loadAllTokens(): Promise<Record<ProviderType, string>> {
-  const tokens: Record<ProviderType, string> = {
+export async function loadAllTokens(): Promise<Record<TokenProvider, string>> {
+  const tokens: Record<TokenProvider, string> = {
     gitee: '',
     huggingface: '',
     modelscope: '',
+    deepseek: '',
   }
-  for (const provider of Object.keys(TOKEN_STORAGE_KEYS) as ProviderType[]) {
+  for (const provider of Object.keys(TOKEN_STORAGE_KEYS) as TokenProvider[]) {
     tokens[provider] = await decryptTokenFromStore(provider)
+  }
+  return tokens
+}
+
+/**
+ * Load all tokens for a provider as an array (supports comma-separated tokens)
+ */
+export async function loadTokensArray(provider: TokenProvider): Promise<string[]> {
+  const rawToken = await decryptTokenFromStore(provider)
+  if (!rawToken) return []
+  return rawToken
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+}
+
+/**
+ * Load all tokens for all providers as arrays
+ */
+export async function loadAllTokensArrays(): Promise<Record<TokenProvider, string[]>> {
+  const tokens: Record<TokenProvider, string[]> = {
+    gitee: [],
+    huggingface: [],
+    modelscope: [],
+    deepseek: [],
+  }
+  for (const provider of Object.keys(TOKEN_STORAGE_KEYS) as TokenProvider[]) {
+    tokens[provider] = await loadTokensArray(provider)
   }
   return tokens
 }

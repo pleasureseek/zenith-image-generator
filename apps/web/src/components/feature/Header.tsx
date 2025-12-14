@@ -1,9 +1,17 @@
-import { Sparkles } from 'lucide-react'
+import { Github, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function Header() {
   return (
     <div className="mb-8 text-center relative">
+      <a
+        href="https://github.com/WuMingDao/zenith-image-generator"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-sm text-zinc-300 hover:text-zinc-100 transition-colors"
+      >
+        <Github className="w-4 h-4" />
+      </a>
       <h1 className="text-5xl font-bold tracking-wider bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-400 bg-clip-text text-transparent">
         ZENITH
       </h1>
@@ -13,7 +21,7 @@ export function Header() {
         className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-sm text-zinc-300 hover:text-zinc-100 transition-colors"
       >
         <Sparkles className="w-4 h-4" />
-        Try Flow Mode (Experimental)
+        Try Flow Mode
       </Link>
     </div>
   )

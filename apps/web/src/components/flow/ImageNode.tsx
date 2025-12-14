@@ -9,7 +9,7 @@ import {
   loadSettings,
   type ProviderType,
 } from '@/lib/constants'
-import { loadAllTokens } from '@/lib/crypto'
+import { loadTokensArray } from '@/lib/crypto'
 import {
   blobToDataUrl,
   blobToObjectUrl,
@@ -18,6 +18,7 @@ import {
   storeBlob,
   urlToBlob,
 } from '@/lib/imageBlobStore'
+import { getNextAvailableToken, isQuotaError, markTokenExhausted } from '@/lib/tokenRotation'
 import type { ImageData } from '@/stores/flowStore'
 import { useFlowStore } from '@/stores/flowStore'
 
@@ -30,12 +31,14 @@ interface GenerateApiResponse {
   imageDetails?: ImageDetails
 }
 
-async function generateImageApi(
+const MAX_RETRY_ATTEMPTS = 10
+
+async function generateImageApiSingle(
   prompt: string,
   width: number,
   height: number,
   provider: ProviderType,
-  token: string,
+  token: string | null,
   model: string,
   seed: number
 ): Promise<ImageDetails> {
@@ -70,9 +73,61 @@ async function generateImageApi(
     throw new Error(`Invalid response: ${text.slice(0, 100)}`)
   }
 
-  if (!res.ok) throw new Error(data.error || 'Failed to generate')
+  if (!res.ok) {
+    const error = new Error(data.error || 'Failed to generate') as Error & { status?: number }
+    error.status = res.status
+    throw error
+  }
   if (!data.imageDetails) throw new Error('No image details returned')
   return data.imageDetails
+}
+
+async function generateImageWithRotation(
+  prompt: string,
+  width: number,
+  height: number,
+  provider: ProviderType,
+  allTokens: string[],
+  model: string,
+  seed: number,
+  requiresAuth: boolean
+): Promise<ImageDetails> {
+  // No tokens configured
+  if (allTokens.length === 0) {
+    if (requiresAuth) {
+      throw new Error('No API Token')
+    }
+    // Try anonymous
+    return generateImageApiSingle(prompt, width, height, provider, null, model, seed)
+  }
+
+  // Token rotation loop
+  let attempts = 0
+  while (attempts < MAX_RETRY_ATTEMPTS) {
+    const token = getNextAvailableToken(provider, allTokens)
+
+    // All tokens exhausted
+    if (!token) {
+      if (!requiresAuth) {
+        // Try anonymous
+        return generateImageApiSingle(prompt, width, height, provider, null, model, seed)
+      }
+      throw new Error('All API tokens exhausted. Quota will reset tomorrow.')
+    }
+
+    try {
+      return await generateImageApiSingle(prompt, width, height, provider, token, model, seed)
+    } catch (err) {
+      if (isQuotaError(err)) {
+        markTokenExhausted(provider, token)
+        attempts++
+        continue
+      }
+      throw err
+    }
+  }
+
+  throw new Error('Maximum retry attempts reached')
 }
 
 function ImageNodeComponent({ id, data }: ImageNodeProps) {
@@ -164,24 +219,22 @@ function ImageNodeComponent({ id, data }: ImageNodeProps) {
         ? savedModel
         : getDefaultModel(provider)
 
-      const tokens = await loadAllTokens()
-      const token = tokens[provider]
+      // Load tokens array for rotation
+      const tokens = await loadTokensArray(provider)
 
       const { PROVIDER_CONFIGS } = await import('@/lib/constants')
-      if (PROVIDER_CONFIGS[provider].requiresAuth && !token) {
-        updateImageError(id, 'No API Token')
-        return
-      }
+      const requiresAuth = PROVIDER_CONFIGS[provider].requiresAuth
 
       try {
-        const imageDetails = await generateImageApi(
+        const imageDetails = await generateImageWithRotation(
           prompt,
           width,
           height,
           provider,
-          token,
+          tokens,
           selectedModel,
-          seed
+          seed,
+          requiresAuth
         )
 
         // Fetch image and store as blob

@@ -25,11 +25,34 @@ batch generation, and one-click deployment to Cloudflare Pages.
 - **Flexible Sizing** - Multiple aspect ratios (1:1, 16:9, 9:16, 4:3, etc.)
 - **4x Upscaling** - RealESRGAN integration
 - **Secure Storage** - API keys encrypted with AES-256-GCM
+- **Token Rotation** - Multiple API keys with automatic failover on rate limits
 - **Flow Mode** - Visual canvas for batch generation (experimental)
   - Local image caching with IndexedDB blob storage
   - Dual limits: 500 images or 4GB max storage
   - LRU cleanup with user confirmation before deletion
   - Download all images before cleanup
+
+## Token Rotation
+
+Support multiple API tokens per provider for automatic rotation when hitting rate limits (429 errors).
+
+### How to Use
+
+Enter multiple tokens in the API settings, separated by **English commas** (`,`):
+
+```
+token_1, token_2, token_3
+```
+
+> **Note**: You must use English comma (`,`), Chinese comma (`，`) will not work.
+
+### How It Works
+
+1. Uses the first available token to make API requests
+2. When a 429 (rate limit) error occurs, automatically switches to the next token
+3. Exhausted tokens are tracked and skipped for the rest of the day
+4. Token status resets daily at UTC 00:00
+5. UI shows real-time token statistics (total/active/exhausted)
 
 ## Quick Start
 

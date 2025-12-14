@@ -2,6 +2,7 @@
  * Unified API Client
  *
  * Provides a unified interface for image generation across providers
+ * with automatic token rotation on rate limit errors.
  */
 
 import type {
@@ -9,12 +10,21 @@ import type {
   ApiErrorResponse,
   GenerateRequest,
   GenerateSuccessResponse,
+  LLMProviderType,
+  OptimizeRequest,
+  OptimizeResponse,
+  TranslateResponse,
   UpscaleRequest,
   UpscaleResponse,
 } from '@z-image/shared'
+import { LLM_PROVIDER_CONFIGS } from '@z-image/shared'
 import { PROVIDER_CONFIGS, type ProviderType } from './constants'
+import { getNextAvailableToken, isQuotaError, markTokenExhausted } from './tokenRotation'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
+
+// Maximum retry attempts for token rotation
+const MAX_RETRY_ATTEMPTS = 10
 
 /** API error with code */
 export interface ApiErrorInfo {
@@ -82,18 +92,20 @@ export interface GenerateOptions {
 
 /** Auth token for API calls */
 export interface AuthToken {
+  /** Single token (for backward compatibility) */
   token?: string
+  /** Multiple tokens for rotation */
+  tokens?: string[]
 }
 
 /**
- * Generate image using the unified API
+ * Internal: Make a single generate API call with specific token
  */
-export async function generateImage(
+async function generateImageSingle(
   options: GenerateOptions,
-  auth: AuthToken
+  token: string | null
 ): Promise<ApiResponse<GenerateSuccessResponse>> {
   const { provider, prompt, negativePrompt, width, height, steps, seed, model } = options
-  const { token } = auth
 
   const providerConfig = PROVIDER_CONFIGS[provider]
   const headers: HeadersInit = {
@@ -115,56 +127,376 @@ export async function generateImage(
     seed,
   }
 
-  try {
-    const response = await fetch(`${API_URL}/api/generate`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    })
+  const response = await fetch(`${API_URL}/api/generate`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
 
-    const data = await response.json()
+  const data = await response.json()
 
-    if (!response.ok) {
-      const errorInfo = parseErrorResponse(data)
+  if (!response.ok) {
+    const errorInfo = parseErrorResponse(data)
+    // Throw with status for quota detection
+    const error = new Error(getErrorMessage(errorInfo)) as Error & {
+      status?: number
+      code?: string
+    }
+    error.status = response.status
+    error.code = errorInfo.code
+    throw error
+  }
+
+  return { success: true, data: data as GenerateSuccessResponse }
+}
+
+/**
+ * Generate image using the unified API with token rotation
+ */
+export async function generateImage(
+  options: GenerateOptions,
+  auth: AuthToken
+): Promise<ApiResponse<GenerateSuccessResponse>> {
+  const { token, tokens } = auth
+  const { provider } = options
+  const providerConfig = PROVIDER_CONFIGS[provider]
+
+  // Build token list: prefer tokens array, fallback to single token
+  const allTokens = tokens?.length ? tokens : token ? [token] : []
+
+  // No tokens and requires auth
+  if (allTokens.length === 0 && providerConfig.requiresAuth) {
+    return {
+      success: false,
+      error: `Please configure your ${providerConfig.name} token first`,
+    }
+  }
+
+  // No tokens but auth not required - try anonymous
+  if (allTokens.length === 0) {
+    try {
+      return await generateImageSingle(options, null)
+    } catch (err) {
       return {
         success: false,
-        error: getErrorMessage(errorInfo),
-        errorInfo,
+        error: err instanceof Error ? err.message : 'Network error',
+      }
+    }
+  }
+
+  // Token rotation loop
+  let attempts = 0
+  while (attempts < MAX_RETRY_ATTEMPTS) {
+    const nextToken = getNextAvailableToken(provider, allTokens)
+
+    // All tokens exhausted
+    if (!nextToken) {
+      // Try anonymous if provider allows it
+      if (!providerConfig.requiresAuth) {
+        try {
+          return await generateImageSingle(options, null)
+        } catch (err) {
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : 'Network error',
+          }
+        }
+      }
+      return {
+        success: false,
+        error: 'All API tokens exhausted. Quota will reset tomorrow.',
       }
     }
 
-    return { success: true, data: data as GenerateSuccessResponse }
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Network error',
+    try {
+      return await generateImageSingle(options, nextToken)
+    } catch (err) {
+      if (isQuotaError(err)) {
+        markTokenExhausted(provider, nextToken)
+        attempts++
+        continue
+      }
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Network error',
+      }
     }
+  }
+
+  return {
+    success: false,
+    error: 'Maximum retry attempts reached',
   }
 }
 
 /**
- * Upscale image using RealESRGAN
+ * Internal: Make a single upscale API call with specific token
  */
-export async function upscaleImage(
+async function upscaleImageSingle(
   url: string,
-  scale = 4,
-  hfToken?: string
+  scale: number,
+  token: string | null
 ): Promise<ApiResponse<UpscaleResponse>> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   }
 
-  if (hfToken) {
-    headers['X-HF-Token'] = hfToken
+  if (token) {
+    headers['X-HF-Token'] = token
   }
 
   const body: UpscaleRequest = { url, scale }
 
+  const response = await fetch(`${API_URL}/api/upscale`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const errorInfo = parseErrorResponse(data)
+    const error = new Error(getErrorMessage(errorInfo)) as Error & {
+      status?: number
+      code?: string
+    }
+    error.status = response.status
+    error.code = errorInfo.code
+    throw error
+  }
+
+  return { success: true, data: data as UpscaleResponse }
+}
+
+/**
+ * Upscale image using RealESRGAN with token rotation
+ */
+export async function upscaleImage(
+  url: string,
+  scale = 4,
+  hfTokens?: string | string[]
+): Promise<ApiResponse<UpscaleResponse>> {
+  // Build token list
+  const allTokens = Array.isArray(hfTokens) ? hfTokens : hfTokens ? [hfTokens] : []
+
+  // No tokens - try anonymous (HuggingFace allows anonymous)
+  if (allTokens.length === 0) {
+    try {
+      return await upscaleImageSingle(url, scale, null)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Network error',
+      }
+    }
+  }
+
+  // Token rotation loop
+  let attempts = 0
+  while (attempts < MAX_RETRY_ATTEMPTS) {
+    const nextToken = getNextAvailableToken('huggingface', allTokens)
+
+    // All tokens exhausted - try anonymous
+    if (!nextToken) {
+      try {
+        return await upscaleImageSingle(url, scale, null)
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Network error',
+        }
+      }
+    }
+
+    try {
+      return await upscaleImageSingle(url, scale, nextToken)
+    } catch (err) {
+      if (isQuotaError(err)) {
+        markTokenExhausted('huggingface', nextToken)
+        attempts++
+        continue
+      }
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Network error',
+      }
+    }
+  }
+
+  return {
+    success: false,
+    error: 'Maximum retry attempts reached',
+  }
+}
+
+/** Optimize prompt options */
+export interface OptimizeOptions {
+  /** The prompt to optimize */
+  prompt: string
+  /** LLM provider (default: pollinations) */
+  provider?: LLMProviderType
+  /** Output language (default: en) */
+  lang?: 'en' | 'zh'
+  /** Specific model to use */
+  model?: string
+  /** Custom system prompt */
+  systemPrompt?: string
+}
+
+/** Map LLM provider to token provider for token rotation */
+function getLLMTokenProvider(
+  provider: LLMProviderType
+): 'gitee' | 'modelscope' | 'huggingface' | 'deepseek' | null {
+  switch (provider) {
+    case 'gitee-llm':
+      return 'gitee'
+    case 'modelscope-llm':
+      return 'modelscope'
+    case 'huggingface-llm':
+      return 'huggingface'
+    case 'deepseek':
+      return 'deepseek'
+    default:
+      return null // pollinations doesn't need token
+  }
+}
+
+/**
+ * Internal: Make a single optimize API call with specific token
+ */
+async function optimizePromptSingle(
+  options: OptimizeOptions,
+  token: string | null
+): Promise<ApiResponse<OptimizeResponse>> {
+  const { prompt, provider = 'pollinations', lang = 'en', model, systemPrompt } = options
+
+  const providerConfig = LLM_PROVIDER_CONFIGS[provider]
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+
+  // Add auth header if provider requires it and token is provided
+  if (token && providerConfig?.needsAuth && providerConfig?.authHeader) {
+    headers[providerConfig.authHeader] = token
+  }
+
+  const body: OptimizeRequest = {
+    prompt,
+    provider,
+    lang,
+    model,
+    systemPrompt,
+  }
+
+  const response = await fetch(`${API_URL}/api/optimize`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const errorInfo = parseErrorResponse(data)
+    const error = new Error(getErrorMessage(errorInfo)) as Error & {
+      status?: number
+      code?: string
+    }
+    error.status = response.status
+    error.code = errorInfo.code
+    throw error
+  }
+
+  return { success: true, data: data as OptimizeResponse }
+}
+
+/**
+ * Optimize a prompt using LLM with token rotation
+ */
+export async function optimizePrompt(
+  options: OptimizeOptions,
+  tokenOrTokens?: string | string[]
+): Promise<ApiResponse<OptimizeResponse>> {
+  const { provider = 'pollinations' } = options
+  const providerConfig = LLM_PROVIDER_CONFIGS[provider]
+  const tokenProvider = getLLMTokenProvider(provider)
+
+  // Build token list
+  const allTokens = Array.isArray(tokenOrTokens)
+    ? tokenOrTokens
+    : tokenOrTokens
+      ? [tokenOrTokens]
+      : []
+
+  // Provider doesn't need auth (e.g., pollinations)
+  if (!providerConfig?.needsAuth) {
+    try {
+      return await optimizePromptSingle(options, null)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Network error',
+      }
+    }
+  }
+
+  // No tokens and requires auth
+  if (allTokens.length === 0) {
+    return {
+      success: false,
+      error: `Please configure your ${provider} token first`,
+    }
+  }
+
+  // Token rotation loop
+  let attempts = 0
+  while (attempts < MAX_RETRY_ATTEMPTS) {
+    const nextToken = tokenProvider ? getNextAvailableToken(tokenProvider, allTokens) : allTokens[0]
+
+    // All tokens exhausted
+    if (!nextToken) {
+      return {
+        success: false,
+        error: 'All API tokens exhausted. Quota will reset tomorrow.',
+      }
+    }
+
+    try {
+      return await optimizePromptSingle(options, nextToken)
+    } catch (err) {
+      if (isQuotaError(err) && tokenProvider) {
+        markTokenExhausted(tokenProvider, nextToken)
+        attempts++
+        continue
+      }
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Network error',
+      }
+    }
+  }
+
+  return {
+    success: false,
+    error: 'Maximum retry attempts reached',
+  }
+}
+
+/**
+ * Translate a prompt from Chinese to English
+ * Uses Pollinations AI with openai-fast model (free, no auth required)
+ */
+export async function translatePrompt(prompt: string): Promise<ApiResponse<TranslateResponse>> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+
   try {
-    const response = await fetch(`${API_URL}/api/upscale`, {
+    const response = await fetch(`${API_URL}/api/translate`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify({ prompt }),
     })
 
     const data = await response.json()
@@ -178,7 +510,7 @@ export async function upscaleImage(
       }
     }
 
-    return { success: true, data: data as UpscaleResponse }
+    return { success: true, data: data as TranslateResponse }
   } catch (err) {
     return {
       success: false,

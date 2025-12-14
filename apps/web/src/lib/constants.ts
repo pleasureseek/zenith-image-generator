@@ -7,7 +7,10 @@
 
 import {
   type AspectRatioConfig,
+  DEFAULT_OPTIMIZE_SYSTEM_PROMPT,
   getModelsByProvider,
+  LLM_PROVIDER_CONFIGS,
+  type LLMProviderType,
   MODEL_CONFIGS,
   PROVIDER_CONFIGS,
   type ProviderType,
@@ -16,8 +19,9 @@ import {
 import { RectangleHorizontal, RectangleVertical, Square } from 'lucide-react'
 
 // Re-export shared types
-export type { ProviderType, AspectRatioConfig }
-export { PROVIDER_CONFIGS, MODEL_CONFIGS, getModelsByProvider }
+export type { ProviderType, AspectRatioConfig, LLMProviderType }
+export { PROVIDER_CONFIGS, MODEL_CONFIGS, getModelsByProvider, LLM_PROVIDER_CONFIGS }
+export { DEFAULT_OPTIMIZE_SYSTEM_PROMPT }
 
 // Environment defaults
 export const DEFAULT_PROMPT = import.meta.env.VITE_DEFAULT_PROMPT
@@ -70,4 +74,78 @@ export const PROVIDER_OPTIONS: { value: ProviderType; label: string; requiresAut
 export function getDefaultModel(provider: ProviderType): string {
   const models = getModelsByProvider(provider)
   return models[0]?.id || 'z-image-turbo'
+}
+
+// ============================================================================
+// LLM Settings (for prompt optimization)
+// ============================================================================
+
+/** LLM provider options for UI (excluding deepseek for now, can add later) */
+export const LLM_PROVIDER_OPTIONS: { value: LLMProviderType; label: string; needsAuth: boolean }[] =
+  [
+    { value: 'pollinations', label: 'Pollinations AI', needsAuth: false },
+    { value: 'huggingface-llm', label: 'HuggingFace', needsAuth: false },
+    { value: 'gitee-llm', label: 'Gitee AI', needsAuth: true },
+    { value: 'modelscope-llm', label: 'ModelScope', needsAuth: true },
+    { value: 'deepseek', label: 'DeepSeek', needsAuth: true },
+  ]
+
+/** Get models for LLM provider */
+export function getLLMModels(provider: LLMProviderType) {
+  return LLM_PROVIDER_CONFIGS[provider]?.models || []
+}
+
+/** Get default LLM model for provider */
+export function getDefaultLLMModel(provider: LLMProviderType): string {
+  return LLM_PROVIDER_CONFIGS[provider]?.defaultModel || 'openai'
+}
+
+/** LLM Settings interface */
+export interface LLMSettings {
+  /** LLM provider for optimization */
+  llmProvider: LLMProviderType
+  /** LLM model for optimization */
+  llmModel: string
+  /** Auto-translate enabled (Chinese to English) */
+  autoTranslate: boolean
+  /** Custom system prompt for optimization */
+  customSystemPrompt: string
+}
+
+/** Default LLM settings */
+export const DEFAULT_LLM_SETTINGS: LLMSettings = {
+  llmProvider: 'pollinations',
+  llmModel: 'openai-fast',
+  autoTranslate: true,
+  customSystemPrompt: '',
+}
+
+/** LLM settings storage key */
+export const LLM_SETTINGS_KEY = 'zenith-llm-settings'
+
+/** Load LLM settings from localStorage */
+export function loadLLMSettings(): LLMSettings {
+  try {
+    const saved = localStorage.getItem(LLM_SETTINGS_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return { ...DEFAULT_LLM_SETTINGS, ...parsed }
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return DEFAULT_LLM_SETTINGS
+}
+
+/** Save LLM settings to localStorage */
+export function saveLLMSettings(settings: Partial<LLMSettings>): void {
+  const current = loadLLMSettings()
+  const updated = { ...current, ...settings }
+  localStorage.setItem(LLM_SETTINGS_KEY, JSON.stringify(updated))
+}
+
+/** Get the effective system prompt (custom or default) */
+export function getEffectiveSystemPrompt(customPrompt: string): string {
+  const trimmed = customPrompt.trim()
+  return trimmed || DEFAULT_OPTIMIZE_SYSTEM_PROMPT
 }

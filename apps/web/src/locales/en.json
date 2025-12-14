@@ -56,7 +56,12 @@
     "optional": "(Optional)",
     "free": "(Free)",
     "tokenPlaceholder": "Enter your {{provider}} API token...",
-    "optionalQuota": "Optional: for extra quota..."
+    "optionalQuota": "Optional: for extra quota...",
+    "multiTokenHint": "Tip: Enter multiple tokens separated by commas for automatic rotation",
+    "tokenStats": "Tokens",
+    "totalTokens": "{{count}} total",
+    "activeTokens": "{{count}} active",
+    "exhaustedTokens": "{{count}} exhausted"
   },
   "status": {
     "title": "Status",
@@ -96,7 +101,9 @@
     "config": "Config",
     "enterPrompt": "Enter prompt...",
     "doubleClickEdit": "Double-click to edit",
-    "doubleClickEnlarge": "Double-click to enlarge"
+    "doubleClickEnlarge": "Double-click to enlarge",
+    "deleteConfigConfirm": "Delete this config and all its images?",
+    "deleteImageConfirm": "Delete this image?"
   },
   "storage": {
     "limitReached": "Storage Limit Reached",

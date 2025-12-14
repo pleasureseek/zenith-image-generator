@@ -1,4 +1,14 @@
-import { GitBranch, ImageIcon, RefreshCw, Sparkles, X, Zap } from 'lucide-react'
+import {
+  GitBranch,
+  Globe,
+  ImageIcon,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Wand2,
+  X,
+  Zap,
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { ASPECT_RATIOS } from '@/lib/constants'
@@ -15,6 +25,11 @@ interface FloatingInputProps {
   providerLabel: string
   selectedNodeId?: string | null
   onClearSelection?: () => void
+  // Prompt optimization/translation
+  onOptimize?: (prompt: string) => Promise<string | null>
+  onTranslate?: (prompt: string) => Promise<string | null>
+  isOptimizing?: boolean
+  isTranslating?: boolean
 }
 
 export default function FloatingInput({
@@ -22,7 +37,12 @@ export default function FloatingInput({
   providerLabel,
   selectedNodeId,
   onClearSelection,
+  onOptimize,
+  onTranslate,
+  isOptimizing = false,
+  isTranslating = false,
 }: FloatingInputProps) {
+  const isProcessing = isOptimizing || isTranslating
   const [aspectRatioIndex, setAspectRatioIndex] = useState(0)
   const [resolutionIndex, setResolutionIndex] = useState(0) // 0=1K, 1=2K - independent of aspect ratio
   const [prompt, setPrompt] = useState('')
@@ -93,6 +113,18 @@ export default function FloatingInput({
     setSeed(Math.floor(Math.random() * 100000))
   }
 
+  const handleOptimize = async () => {
+    if (!onOptimize || !prompt.trim() || isProcessing) return
+    const optimized = await onOptimize(prompt)
+    if (optimized) setPrompt(optimized)
+  }
+
+  const handleTranslate = async () => {
+    if (!onTranslate || !prompt.trim() || isProcessing) return
+    const translated = await onTranslate(prompt)
+    if (translated) setPrompt(translated)
+  }
+
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50 flex items-end gap-3">
       <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl p-4 shadow-2xl flex flex-col gap-3 relative">
@@ -140,19 +172,56 @@ export default function FloatingInput({
         </div>
 
         {/* Row 2: Input */}
-        <textarea
-          placeholder="Describe your image..."
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleSubmit()
-            }
-          }}
-          rows={3}
-          className="w-full bg-transparent text-zinc-100 placeholder:text-zinc-600 focus:outline-none text-lg py-1 resize-none"
-        />
+        <div className="relative">
+          <textarea
+            placeholder="Describe your image..."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit()
+              }
+            }}
+            rows={3}
+            className="w-full bg-transparent text-zinc-100 placeholder:text-zinc-600 focus:outline-none text-lg py-1 resize-none pr-20"
+          />
+          {/* Optimize/Translate buttons */}
+          {(onOptimize || onTranslate) && (
+            <div className="absolute right-0 top-0 flex flex-col gap-1">
+              {onTranslate && (
+                <button
+                  type="button"
+                  onClick={handleTranslate}
+                  disabled={isProcessing || !prompt.trim()}
+                  className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Translate to English"
+                >
+                  {isTranslating ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Globe size={16} />
+                  )}
+                </button>
+              )}
+              {onOptimize && (
+                <button
+                  type="button"
+                  onClick={handleOptimize}
+                  disabled={isProcessing || !prompt.trim()}
+                  className="p-1.5 rounded-lg text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Optimize prompt"
+                >
+                  {isOptimizing ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Wand2 size={16} />
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Row 3: Model & Controls */}
         <div className="flex justify-between items-center">

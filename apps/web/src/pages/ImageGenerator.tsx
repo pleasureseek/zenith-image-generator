@@ -1,6 +1,7 @@
 import { ApiConfigAccordion } from '@/components/feature/ApiConfigAccordion'
 import { Header } from '@/components/feature/Header'
 import { ImageResultCard } from '@/components/feature/ImageResultCard'
+import { LLMSettingsAccordion } from '@/components/feature/LLMSettingsAccordion'
 import { PromptCard } from '@/components/feature/PromptCard'
 import { StatusCard } from '@/components/feature/StatusCard'
 import { useImageGenerator } from '@/hooks/useImageGenerator'
@@ -26,6 +27,9 @@ export default function ImageGenerator() {
     isBlurred,
     isUpscaled,
     isUpscaling,
+    isOptimizing,
+    isTranslating,
+    llmSettings,
     setProvider,
     setModel,
     setPrompt,
@@ -35,6 +39,10 @@ export default function ImageGenerator() {
     setSteps,
     setShowInfo,
     setIsBlurred,
+    setLLMProvider,
+    setLLMModel,
+    setAutoTranslate,
+    setCustomSystemPrompt,
     saveToken,
     handleRatioSelect,
     handleUhdToggle,
@@ -42,6 +50,8 @@ export default function ImageGenerator() {
     handleUpscale,
     handleDelete,
     handleGenerate,
+    handleOptimize,
+    handleTranslate,
   } = useImageGenerator()
 
   return (
@@ -63,6 +73,14 @@ export default function ImageGenerator() {
                 saveToken={saveToken}
               />
 
+              <LLMSettingsAccordion
+                llmSettings={llmSettings}
+                setLLMProvider={setLLMProvider}
+                setLLMModel={setLLMModel}
+                setAutoTranslate={setAutoTranslate}
+                setCustomSystemPrompt={setCustomSystemPrompt}
+              />
+
               <PromptCard
                 prompt={prompt}
                 negativePrompt={negativePrompt}
@@ -80,6 +98,10 @@ export default function ImageGenerator() {
                 handleRatioSelect={handleRatioSelect}
                 handleUhdToggle={handleUhdToggle}
                 handleGenerate={handleGenerate}
+                onOptimize={handleOptimize}
+                onTranslate={handleTranslate}
+                isOptimizing={isOptimizing}
+                isTranslating={isTranslating}
               />
             </div>
 

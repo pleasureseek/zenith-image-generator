@@ -5,21 +5,28 @@
  */
 
 import type { ImageDetails } from '@z-image/shared'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { generateImage, upscaleImage } from '@/lib/api'
+import { generateImage, optimizePrompt, translatePrompt, upscaleImage } from '@/lib/api'
 import {
   ASPECT_RATIOS,
   DEFAULT_NEGATIVE_PROMPT,
   DEFAULT_PROMPT,
+  getDefaultLLMModel,
   getDefaultModel,
+  getEffectiveSystemPrompt,
   getModelsByProvider,
+  type LLMProviderType,
+  type LLMSettings,
+  loadLLMSettings,
   loadSettings,
   PROVIDER_CONFIGS,
   type ProviderType,
+  saveLLMSettings,
   saveSettings,
 } from '@/lib/constants'
-import { encryptAndStoreToken, loadAllTokens } from '@/lib/crypto'
+import { encryptAndStoreToken, loadAllTokens, loadTokensArray } from '@/lib/crypto'
+import { parseTokens } from '@/lib/tokenRotation'
 
 const IMAGE_DETAILS_KEY = 'lastImageDetails'
 
@@ -55,6 +62,11 @@ export function useImageGenerator() {
   const [isUpscaled, setIsUpscaled] = useState(false)
   const [isUpscaling, setIsUpscaling] = useState(false)
   const initialized = useRef(false)
+
+  // LLM Settings for prompt optimization
+  const [llmSettings, setLLMSettings] = useState<LLMSettings>(loadLLMSettings)
+  const [isOptimizing, setIsOptimizing] = useState(false)
+  const [isTranslating, setIsTranslating] = useState(false)
 
   // Get current token for selected provider
   const currentToken = tokens[provider]
@@ -119,9 +131,9 @@ export function useImageGenerator() {
     if (token) toast.success(`${PROVIDER_CONFIGS[p].name} token saved`)
   }
 
-  const addStatus = (msg: string) => {
+  const addStatus = useCallback((msg: string) => {
     setStatus((prev) => `${prev}\n${msg}`)
-  }
+  }, [])
 
   const handleRatioSelect = (ratio: (typeof ASPECT_RATIOS)[number]) => {
     setSelectedRatio(ratio.label)
@@ -151,7 +163,13 @@ export function useImageGenerator() {
     setIsUpscaling(true)
     addStatus('Upscaling to 4x...')
 
-    const result = await upscaleImage(imageDetails.url, 4, tokens.huggingface || undefined)
+    // Get HuggingFace tokens array for rotation
+    const hfTokens = parseTokens(tokens.huggingface)
+    const result = await upscaleImage(
+      imageDetails.url,
+      4,
+      hfTokens.length > 0 ? hfTokens : undefined
+    )
 
     if (result.success && result.data.url) {
       setImageDetails((prev) => (prev ? { ...prev, url: result.data.url as string } : null))
@@ -176,7 +194,9 @@ export function useImageGenerator() {
 
   const handleGenerate = async () => {
     const providerConfig = PROVIDER_CONFIGS[provider]
-    if (providerConfig.requiresAuth && !currentToken) {
+    const providerTokens = parseTokens(currentToken)
+
+    if (providerConfig.requiresAuth && providerTokens.length === 0) {
       toast.error(`Please configure your ${providerConfig.name} token first`)
       return
     }
@@ -201,7 +221,7 @@ export function useImageGenerator() {
           steps,
           model,
         },
-        { token: currentToken || undefined }
+        { tokens: providerTokens.length > 0 ? providerTokens : undefined }
       )
 
       if (!result.success) {
@@ -215,7 +235,12 @@ export function useImageGenerator() {
       // Auto upscale to 8K if enabled
       if (upscale8k && details.url.startsWith('http')) {
         addStatus('Upscaling to 8K...')
-        const upResult = await upscaleImage(details.url, 4, tokens.huggingface || undefined)
+        const hfTokens = parseTokens(tokens.huggingface)
+        const upResult = await upscaleImage(
+          details.url,
+          4,
+          hfTokens.length > 0 ? hfTokens : undefined
+        )
 
         if (upResult.success && upResult.data.url) {
           details.url = upResult.data.url
@@ -236,6 +261,127 @@ export function useImageGenerator() {
       setLoading(false)
     }
   }
+
+  // LLM Settings handlers
+  const updateLLMSettings = useCallback((updates: Partial<LLMSettings>) => {
+    setLLMSettings((prev) => {
+      const newSettings = { ...prev, ...updates }
+      saveLLMSettings(newSettings)
+      return newSettings
+    })
+  }, [])
+
+  const setLLMProvider = useCallback(
+    (provider: LLMProviderType) => {
+      updateLLMSettings({
+        llmProvider: provider,
+        llmModel: getDefaultLLMModel(provider),
+      })
+    },
+    [updateLLMSettings]
+  )
+
+  const setLLMModel = useCallback(
+    (model: string) => {
+      updateLLMSettings({ llmModel: model })
+    },
+    [updateLLMSettings]
+  )
+
+  const setAutoTranslate = useCallback(
+    (enabled: boolean) => {
+      updateLLMSettings({ autoTranslate: enabled })
+    },
+    [updateLLMSettings]
+  )
+
+  const setCustomSystemPrompt = useCallback(
+    (prompt: string) => {
+      updateLLMSettings({ customSystemPrompt: prompt })
+    },
+    [updateLLMSettings]
+  )
+
+  // Get tokens for LLM provider (maps llm provider to token provider)
+  const getLLMTokens = useCallback(async (): Promise<string[]> => {
+    const { llmProvider } = llmSettings
+    switch (llmProvider) {
+      case 'gitee-llm':
+        return loadTokensArray('gitee')
+      case 'modelscope-llm':
+        return loadTokensArray('modelscope')
+      case 'huggingface-llm':
+        return loadTokensArray('huggingface')
+      case 'deepseek':
+        return loadTokensArray('deepseek')
+      default:
+        return []
+    }
+  }, [llmSettings])
+
+  // Optimize prompt handler
+  const handleOptimize = useCallback(async () => {
+    if (!prompt.trim() || isOptimizing) return
+
+    setIsOptimizing(true)
+    addStatus('Optimizing prompt...')
+
+    try {
+      const tokens = await getLLMTokens()
+      const result = await optimizePrompt(
+        {
+          prompt,
+          provider: llmSettings.llmProvider,
+          model: llmSettings.llmModel,
+          lang: 'en',
+          systemPrompt: getEffectiveSystemPrompt(llmSettings.customSystemPrompt),
+        },
+        tokens.length > 0 ? tokens : undefined
+      )
+
+      if (result.success) {
+        setPrompt(result.data.optimized)
+        addStatus('Prompt optimized!')
+        toast.success('Prompt optimized!')
+      } else {
+        addStatus(`Optimization failed: ${result.error}`)
+        toast.error(result.error)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Optimization failed'
+      addStatus(`Error: ${msg}`)
+      toast.error(msg)
+    } finally {
+      setIsOptimizing(false)
+    }
+  }, [prompt, isOptimizing, llmSettings, getLLMTokens, addStatus])
+
+  // Translate prompt handler
+  const handleTranslate = useCallback(async () => {
+    if (!prompt.trim() || isTranslating) return
+
+    setIsTranslating(true)
+    addStatus('Translating prompt...')
+
+    try {
+      const result = await translatePrompt(prompt)
+
+      if (result.success) {
+        setPrompt(result.data.translated)
+        addStatus('Prompt translated!')
+        toast.success('Prompt translated to English!')
+      } else {
+        addStatus(`Translation failed: ${result.error}`)
+        toast.error(result.error)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Translation failed'
+      addStatus(`Error: ${msg}`)
+      toast.error(msg)
+    } finally {
+      setIsTranslating(false)
+    }
+  }, [prompt, isTranslating, addStatus])
 
   return {
     // State
@@ -259,6 +405,10 @@ export function useImageGenerator() {
     isBlurred,
     isUpscaled,
     isUpscaling,
+    // LLM State
+    llmSettings,
+    isOptimizing,
+    isTranslating,
     // Setters
     setProvider,
     setModel,
@@ -269,6 +419,11 @@ export function useImageGenerator() {
     setSteps,
     setShowInfo,
     setIsBlurred,
+    // LLM Setters
+    setLLMProvider,
+    setLLMModel,
+    setAutoTranslate,
+    setCustomSystemPrompt,
     // Handlers
     saveToken,
     handleRatioSelect,
@@ -277,5 +432,8 @@ export function useImageGenerator() {
     handleUpscale,
     handleDelete,
     handleGenerate,
+    // LLM Handlers
+    handleOptimize,
+    handleTranslate,
   }
 }

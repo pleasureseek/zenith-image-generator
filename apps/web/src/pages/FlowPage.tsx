@@ -17,19 +17,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 import { ArrowLeft, Download, Settings, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ApiConfigAccordion } from '@/components/feature/ApiConfigAccordion'
 import AIResultNode, { type AIResultNodeData } from '@/components/flow/AIResultNode'
 import FloatingInput from '@/components/flow/FloatingInput'
 import { getLayoutedElements } from '@/components/flow/layout'
 import UserPromptNode, { type UserPromptNodeData } from '@/components/flow/UserPromptNode'
+import { optimizePrompt, translatePrompt } from '@/lib/api'
 import {
   getDefaultModel,
+  getEffectiveSystemPrompt,
   getModelsByProvider,
+  loadLLMSettings,
   loadSettings,
   type ProviderType,
   saveSettings,
 } from '@/lib/constants'
-import { encryptAndStoreToken, loadAllTokens } from '@/lib/crypto'
+import { decryptTokenFromStore, encryptAndStoreToken, loadAllTokens } from '@/lib/crypto'
 import {
   clearFlowState,
   type GeneratedImage,
@@ -74,6 +78,8 @@ function FlowCanvas() {
   const [model, setModel] = useState(() => loadSettings().model ?? 'z-image-turbo')
   const [showSettings, setShowSettings] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isOptimizing, setIsOptimizing] = useState(false)
+  const [isTranslating, setIsTranslating] = useState(false)
   const nodeIdRef = useRef(0)
   const imagesRef = useRef<GeneratedImage[]>([])
   const { fitView, setViewport, setCenter } = useReactFlow()
@@ -214,6 +220,85 @@ function FlowCanvas() {
     const prev = loadSettings()
     saveSettings({ ...prev, ...patch })
   }
+
+  // Optimize prompt handler
+  const handleOptimize = useCallback(
+    async (prompt: string): Promise<string | null> => {
+      if (!prompt.trim() || isOptimizing) return null
+
+      setIsOptimizing(true)
+      try {
+        const llmSettings = loadLLMSettings()
+        // Get token for LLM provider
+        let token: string | undefined
+        switch (llmSettings.llmProvider) {
+          case 'gitee-llm':
+            token = await decryptTokenFromStore('gitee')
+            break
+          case 'modelscope-llm':
+            token = await decryptTokenFromStore('modelscope')
+            break
+          case 'huggingface-llm':
+            token = await decryptTokenFromStore('huggingface')
+            break
+          case 'deepseek':
+            token = await decryptTokenFromStore('deepseek')
+            break
+        }
+
+        const result = await optimizePrompt(
+          {
+            prompt,
+            provider: llmSettings.llmProvider,
+            model: llmSettings.llmModel,
+            lang: 'en',
+            systemPrompt: getEffectiveSystemPrompt(llmSettings.customSystemPrompt),
+          },
+          token
+        )
+
+        if (result.success) {
+          toast.success('Prompt optimized!')
+          return result.data.optimized
+        }
+        toast.error(result.error)
+        return null
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Optimization failed'
+        toast.error(msg)
+        return null
+      } finally {
+        setIsOptimizing(false)
+      }
+    },
+    [isOptimizing]
+  )
+
+  // Translate prompt handler
+  const handleTranslate = useCallback(
+    async (prompt: string): Promise<string | null> => {
+      if (!prompt.trim() || isTranslating) return null
+
+      setIsTranslating(true)
+      try {
+        const result = await translatePrompt(prompt)
+
+        if (result.success) {
+          toast.success('Prompt translated to English!')
+          return result.data.translated
+        }
+        toast.error(result.error)
+        return null
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Translation failed'
+        toast.error(msg)
+        return null
+      } finally {
+        setIsTranslating(false)
+      }
+    },
+    [isTranslating]
+  )
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -447,6 +532,10 @@ function FlowCanvas() {
         providerLabel={`${provider} / ${model}`}
         selectedNodeId={selectedNodeId}
         onClearSelection={() => setSelectedNodeId(null)}
+        onOptimize={handleOptimize}
+        onTranslate={handleTranslate}
+        isOptimizing={isOptimizing}
+        isTranslating={isTranslating}
       />
     </div>
   )

@@ -1,4 +1,4 @@
-import { Loader2, RotateCcw, Sparkles } from 'lucide-react'
+import { Globe, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
 import {
   Accordion,
   AccordionContent,
@@ -30,6 +30,11 @@ interface PromptCardProps {
   handleRatioSelect: (ratio: AspectRatio) => void
   handleUhdToggle: (enabled: boolean) => void
   handleGenerate: () => void
+  // Prompt optimization/translation
+  onOptimize?: () => void
+  onTranslate?: () => void
+  isOptimizing?: boolean
+  isTranslating?: boolean
 }
 
 export function PromptCard({
@@ -49,18 +54,64 @@ export function PromptCard({
   handleRatioSelect,
   handleUhdToggle,
   handleGenerate,
+  onOptimize,
+  onTranslate,
+  isOptimizing = false,
+  isTranslating = false,
 }: PromptCardProps) {
+  const isProcessing = isOptimizing || isTranslating
+
   return (
     <Card className="bg-zinc-900/50 border-zinc-800">
       <CardContent className="p-5 space-y-4">
         <div>
-          <Label className="text-zinc-300 text-sm font-medium">Prompt</Label>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-zinc-300 text-sm font-medium">Prompt</Label>
+            <div className="flex items-center gap-1">
+              {onTranslate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onTranslate}
+                  disabled={isProcessing || !prompt.trim()}
+                  className="h-7 px-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10"
+                  title="Translate to English"
+                >
+                  {isTranslating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Globe className="w-4 h-4" />
+                  )}
+                  <span className="ml-1 text-xs">Translate</span>
+                </Button>
+              )}
+              {onOptimize && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOptimize}
+                  disabled={isProcessing || !prompt.trim()}
+                  className="h-7 px-2 text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10"
+                  title="Optimize prompt"
+                >
+                  {isOptimizing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-4 h-4" />
+                  )}
+                  <span className="ml-1 text-xs">Optimize</span>
+                </Button>
+              )}
+            </div>
+          </div>
           <Textarea
             rows={8}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe the image you want to create..."
-            className="mt-2 bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 resize-none overflow-y-auto max-h-48"
+            className="bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 resize-none overflow-y-auto max-h-48"
           />
         </div>
 
