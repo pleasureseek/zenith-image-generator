@@ -8,6 +8,7 @@ export interface VideoState {
   videoUrl?: string
   error?: string
   provider?: 'gitee' | 'huggingface'
+  token?: string
 }
 
 export function useVideoGenerator() {
@@ -15,17 +16,16 @@ export function useVideoGenerator() {
   const pollingRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
-    if (videoState.status !== 'polling' || !videoState.taskId) return
+    if (videoState.status !== 'polling' || !videoState.taskId || !videoState.token) return
 
     const pollInterval = setInterval(async () => {
-      const giteeToken = localStorage.getItem('gitee_token')
-      if (!giteeToken || !videoState.taskId) {
+      if (!videoState.token || !videoState.taskId) {
         clearInterval(pollInterval)
         setVideoState({ status: 'failed', error: 'Missing token or task ID' })
         return
       }
 
-      const result = await getVideoTaskStatus(videoState.taskId, giteeToken)
+      const result = await getVideoTaskStatus(videoState.taskId, videoState.token)
 
       if (result.success) {
         if (result.data.status === 'success') {
@@ -56,7 +56,7 @@ export function useVideoGenerator() {
     pollingRef.current = pollInterval
 
     return () => clearInterval(pollInterval)
-  }, [videoState.status, videoState.taskId, videoState.provider])
+  }, [videoState.status, videoState.taskId, videoState.provider, videoState.token])
 
   const generateVideo = async (
     imageUrl: string,
@@ -84,7 +84,12 @@ export function useVideoGenerator() {
         )
 
         if (result.success) {
-          setVideoState({ status: 'polling', taskId: result.data.taskId, provider })
+          setVideoState({
+            status: 'polling',
+            taskId: result.data.taskId,
+            provider,
+            token: giteeToken,
+          })
         } else {
           setVideoState({ status: 'failed', error: result.error, provider })
         }
