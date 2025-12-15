@@ -232,6 +232,105 @@ X-HF-Token: your-huggingface-token (可选)
 }
 ```
 
+## `POST /api/video/generate`
+
+创建图片转视频生成任务（仅支持 Gitee AI）。
+
+**请求头：**
+
+```
+Content-Type: application/json
+X-API-Key: your-gitee-ai-api-key
+```
+
+**请求体：**
+
+```json
+{
+  "provider": "gitee",
+  "imageUrl": "https://example.com/image.png",
+  "prompt": "A beautiful sunset over mountains",
+  "width": 1024,
+  "height": 1024
+}
+```
+
+**响应（成功）：**
+
+```json
+{
+  "taskId": "task_abc123",
+  "status": "pending"
+}
+```
+
+**参数：**
+
+| 字段       | 类型   | 必填 | 描述                   |
+| ---------- | ------ | ---- | ---------------------- |
+| `provider` | string | 是   | 必须为 `gitee`         |
+| `imageUrl` | string | 是   | 源图片 URL             |
+| `prompt`   | string | 是   | 视频生成提示词         |
+| `width`    | number | 是   | 视频宽度 (256-2048)    |
+| `height`   | number | 是   | 视频高度 (256-2048)    |
+| `seed`     | number | 否   | 随机种子，用于复现结果 |
+
+## `GET /api/video/status/:taskId`
+
+查询视频生成任务状态。
+
+**请求头：**
+
+```
+X-API-Key: your-gitee-ai-api-key
+```
+
+**路径参数：**
+
+| 参数     | 类型   | 描述       |
+| -------- | ------ | ---------- |
+| `taskId` | string | 视频任务 ID |
+
+**响应（等待中/处理中）：**
+
+```json
+{
+  "status": "processing"
+}
+```
+
+**响应（成功）：**
+
+```json
+{
+  "status": "success",
+  "videoUrl": "https://example.com/generated-video.mp4"
+}
+```
+
+**响应（失败）：**
+
+```json
+{
+  "status": "failed",
+  "error": "Video generation failed"
+}
+```
+
+**状态值：**
+
+| 状态         | 描述               |
+| ------------ | ------------------ |
+| `pending`    | 任务已排队，未开始 |
+| `processing` | 视频生成中         |
+| `success`    | 视频生成成功       |
+| `failed`     | 视频生成失败       |
+
+**注意事项：**
+- 视频生成需要 60-180 秒
+- 建议每 3 秒轮询一次此端点检查状态
+- 视频 URL 是临时的，应及时下载
+
 ## `GET /api/llm-providers`
 
 获取所有可用的 LLM Provider（用于提示词优化）。

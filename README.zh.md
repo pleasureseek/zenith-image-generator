@@ -21,6 +21,7 @@
 ## 功能特性
 
 - **多 AI 提供商** - Gitee AI、HuggingFace Spaces、ModelScope
+- **图片转视频** - 从图片生成视频 (Gitee AI)
 - **深色模式 UI** - Gradio 风格毛玻璃效果
 - **灵活尺寸** - 多种宽高比 (1:1, 16:9, 9:16, 4:3 等)
 - **4x 放大** - RealESRGAN 集成

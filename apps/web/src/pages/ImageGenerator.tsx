@@ -8,6 +8,7 @@ import { useImageGenerator } from '@/hooks/useImageGenerator'
 
 export default function ImageGenerator() {
   const {
+    tokens,
     currentToken,
     provider,
     model,
@@ -115,6 +116,7 @@ export default function ImageGenerator() {
                 isBlurred={isBlurred}
                 isUpscaled={isUpscaled}
                 isUpscaling={isUpscaling}
+                giteeToken={tokens.gitee}
                 setShowInfo={setShowInfo}
                 setIsBlurred={setIsBlurred}
                 handleUpscale={handleUpscale}
