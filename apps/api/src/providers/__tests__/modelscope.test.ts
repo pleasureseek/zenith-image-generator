@@ -21,8 +21,9 @@ describe('ModelScopeProvider', () => {
 
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
-    ;(provider as any).pollIntervalMs = 0
-    ;(provider as any).maxPollAttempts = 3
+    const pollingConfig = provider as unknown as { pollIntervalMs: number; maxPollAttempts: number }
+    pollingConfig.pollIntervalMs = 0
+    pollingConfig.maxPollAttempts = 3
   })
 
   afterEach(() => {
@@ -49,11 +50,11 @@ describe('ModelScopeProvider', () => {
     })
 
     it('should throw AUTH_INVALID when token too short', async () => {
-      await expect(provider.generate({ ...defaultRequest, authToken: 'short' })).rejects.toMatchObject(
-        {
-          code: ApiErrorCode.AUTH_INVALID,
-        }
-      )
+      await expect(
+        provider.generate({ ...defaultRequest, authToken: 'short' })
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_INVALID,
+      })
     })
   })
 
@@ -156,7 +157,8 @@ describe('ModelScopeProvider', () => {
 
     it('should throw TIMEOUT when polling exceeds attempts', async () => {
       const mockFetch = vi.mocked(fetch)
-      ;(provider as any).maxPollAttempts = 2
+      const pollingConfig = provider as unknown as { maxPollAttempts: number }
+      pollingConfig.maxPollAttempts = 2
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -177,4 +179,3 @@ describe('ModelScopeProvider', () => {
     })
   })
 })
-
