@@ -128,8 +128,8 @@ describe('OpenAI-compatible routes', () => {
     })
 
     expect(res.status).toBe(400)
-    const json = (await res.json()) as { code: string }
-    expect(json.code).toBe(ApiErrorCode.INVALID_PARAMS)
+    const json = (await res.json()) as { error?: { code?: string } }
+    expect(json.error?.code).toBe(ApiErrorCode.INVALID_PARAMS)
   })
 
   it('GET /v1/models returns OpenAI-like list', async () => {
@@ -141,5 +141,34 @@ describe('OpenAI-compatible routes', () => {
     expect(json.data.map((m) => m.id)).toContain('z-image-turbo')
     expect(json.data.map((m) => m.id)).toContain('gitee/z-image-turbo')
     expect(json.data.map((m) => m.id)).toContain('ms/flux-2')
+  })
+
+  it('POST /v1/chat/completions returns OpenAI-like chat completion', async () => {
+    const mockFetch = vi.mocked(fetch)
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'optimized prompt' } }] }),
+    } as Response)
+
+    const res = await app.request('/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'pollinations/openai-fast',
+        messages: [
+          { role: 'system', content: 'You are a prompt optimizer' },
+          { role: 'user', content: 'a cat' },
+        ],
+        max_tokens: 100,
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as {
+      object: string
+      choices: Array<{ message: { content: string } }>
+    }
+    expect(json.object).toBe('chat.completion')
+    expect(json.choices[0]?.message?.content).toBe('optimized prompt')
   })
 })

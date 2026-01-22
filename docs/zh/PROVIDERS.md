@@ -18,7 +18,7 @@
 
 | 字段 | 值 |
 |------|-----|
-| 认证请求头 | `X-API-Key` |
+| 认证请求头 | `Authorization: Bearer gitee:<token>` |
 | 需要认证 | 是 |
 | 图片格式 | PNG |
 | 获取 API Key | [ai.gitee.com](https://ai.gitee.com) |
@@ -41,7 +41,7 @@
 
 | 字段 | 值 |
 |------|-----|
-| 认证请求头 | `X-HF-Token` |
+| 认证请求头 | `Authorization: Bearer <token>`（或 `Bearer hf:<token>`） |
 | 需要认证 | 否 (无 token 有速率限制) |
 | 图片格式 | WebP |
 | 获取 Token | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
@@ -63,7 +63,6 @@
 | qwen-image-fast | `https://mcp-tools-qwen-image-fast.hf.space` |
 | ovis-image | `https://aidc-ai-ovis-image-7b.hf.space` |
 | flux-1-schnell | `https://black-forest-labs-flux-1-schnell.hf.space` |
-| upscaler (放大) | `https://tuan2308-upscaler.hf.space` |
 
 ---
 
@@ -73,7 +72,7 @@
 
 | 字段 | 值 |
 |------|-----|
-| 认证请求头 | `X-MS-Token` |
+| 认证请求头 | `Authorization: Bearer ms:<token>` |
 | 需要认证 | 是 |
 | 图片格式 | PNG |
 | 获取 Token | [modelscope.cn](https://modelscope.cn) |
@@ -114,43 +113,48 @@
 ### Gitee AI + Z-Image Turbo
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-gitee-api-key" \
+  -H "Authorization: Bearer gitee:your-gitee-api-key" \
   -d '{
-    "provider": "gitee",
-    "model": "z-image-turbo",
+    "model": "gitee/z-image-turbo",
     "prompt": "一只可爱的猫",
     "negative_prompt": "低质量, 模糊",
-    "steps": 9
+    "size": "1024x1024",
+    "steps": 9,
+    "n": 1,
+    "response_format": "url"
   }'
 ```
 
 ### HuggingFace + FLUX.1 Schnell
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-HF-Token: your-hf-token" \
   -d '{
-    "provider": "huggingface",
     "model": "flux-1-schnell",
     "prompt": "一只可爱的猫",
-    "steps": 8
+    "size": "1024x1024",
+    "steps": 8,
+    "n": 1,
+    "response_format": "url"
   }'
 ```
 
 ### ModelScope + FLUX.2
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-MS-Token: your-ms-token" \
+  -H "Authorization: Bearer ms:your-ms-token" \
   -d '{
-    "provider": "modelscope",
-    "model": "black-forest-labs/FLUX.2-dev",
+    "model": "ms/flux-2",
     "prompt": "一只可爱的猫",
+    "size": "1024x1024",
     "steps": 24,
-    "guidanceScale": 3.5
+    "guidance_scale": 3.5,
+    "n": 1,
+    "response_format": "url"
   }'
 ```

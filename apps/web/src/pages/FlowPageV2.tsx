@@ -8,6 +8,7 @@ import {
   ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { DEFAULT_TRANSLATE_SYSTEM_PROMPT } from '@z-image/shared'
 import { ArrowLeft, Download, Github, History, Loader2, Settings, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -21,7 +22,12 @@ import { ImageNode } from '@/components/flow/ImageNode'
 import { Lightbox } from '@/components/flow/Lightbox'
 import { type ContextMenuState, NodeContextMenu } from '@/components/flow/NodeContextMenu'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
-import { optimizePrompt, translatePrompt } from '@/lib/api'
+import {
+  buildChatTokenWithPrefix,
+  createOpenAIClientForBaseUrl,
+  getFullChatModelId,
+  openai,
+} from '@/lib/api'
 import {
   getDefaultLLMModel,
   getDefaultModel,
@@ -231,9 +237,36 @@ function FlowCanvas() {
 
       setIsOptimizing(true)
       try {
+        const provider = llmSettings.llmProvider
+        const systemPrompt = `${getEffectiveSystemPrompt(llmSettings.customSystemPrompt)}\n\nEnsure the output is in English.`
+
+        if (provider === 'custom') {
+          const { baseUrl, apiKey, model } = llmSettings.customOptimizeConfig
+          if (!baseUrl || !apiKey || !model) {
+            toast.error('Please configure custom provider URL, API key, and model')
+            return null
+          }
+          const client = createOpenAIClientForBaseUrl(baseUrl)
+          const resp = await client.chatCompletions(
+            {
+              model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt },
+              ],
+              max_tokens: 1000,
+            },
+            apiKey
+          )
+          const out = resp.choices?.[0]?.message?.content?.trim()
+          if (!out) throw new Error('Empty response from provider')
+          toast.success(t('prompt.optimizeSuccess'))
+          return out
+        }
+
         // Get token for LLM provider
         let token: string | undefined
-        switch (llmSettings.llmProvider) {
+        switch (provider) {
           case 'gitee-llm':
             token = await decryptTokenFromStore('gitee')
             break
@@ -248,23 +281,22 @@ function FlowCanvas() {
             break
         }
 
-        const result = await optimizePrompt(
+        const resp = await openai.chatCompletions(
           {
-            prompt,
-            provider: llmSettings.llmProvider,
-            model: llmSettings.llmModel,
-            lang: 'en',
-            systemPrompt: getEffectiveSystemPrompt(llmSettings.customSystemPrompt),
+            model: getFullChatModelId(provider, llmSettings.llmModel),
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1000,
           },
-          token
+          token ? buildChatTokenWithPrefix(provider, token) : undefined
         )
 
-        if (result.success) {
-          toast.success(t('prompt.optimizeSuccess'))
-          return result.data.optimized
-        }
-        toast.error(result.error)
-        return null
+        const out = resp.choices?.[0]?.message?.content?.trim()
+        if (!out) throw new Error('Empty response from provider')
+        toast.success(t('prompt.optimizeSuccess'))
+        return out
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Optimization failed'
         toast.error(msg)
@@ -283,9 +315,36 @@ function FlowCanvas() {
 
       setIsTranslating(true)
       try {
+        const provider = llmSettings.translateProvider
+
+        if (provider === 'custom') {
+          const { baseUrl, apiKey, model } = llmSettings.customTranslateConfig
+          if (!baseUrl || !apiKey || !model) {
+            toast.error('Please configure custom provider URL, API key, and model')
+            return null
+          }
+          const client = createOpenAIClientForBaseUrl(baseUrl)
+          const resp = await client.chatCompletions(
+            {
+              model,
+              messages: [
+                { role: 'system', content: DEFAULT_TRANSLATE_SYSTEM_PROMPT },
+                { role: 'user', content: prompt },
+              ],
+              max_tokens: 1000,
+              temperature: 0.3,
+            },
+            apiKey
+          )
+          const out = resp.choices?.[0]?.message?.content?.trim()
+          if (!out) throw new Error('Empty response from provider')
+          toast.success(t('prompt.translateSuccess'))
+          return out
+        }
+
         // Get token for translate provider
         let token: string | undefined
-        switch (llmSettings.translateProvider) {
+        switch (provider) {
           case 'gitee-llm':
             token = await decryptTokenFromStore('gitee')
             break
@@ -300,21 +359,23 @@ function FlowCanvas() {
             break
         }
 
-        const result = await translatePrompt(
+        const resp = await openai.chatCompletions(
           {
-            prompt,
-            provider: llmSettings.translateProvider,
-            model: llmSettings.translateModel,
+            model: getFullChatModelId(provider, llmSettings.translateModel),
+            messages: [
+              { role: 'system', content: DEFAULT_TRANSLATE_SYSTEM_PROMPT },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1000,
+            temperature: 0.3,
           },
-          token
+          token ? buildChatTokenWithPrefix(provider, token) : undefined
         )
 
-        if (result.success) {
-          toast.success(t('prompt.translateSuccess'))
-          return result.data.translated
-        }
-        toast.error(result.error)
-        return null
+        const out = resp.choices?.[0]?.message?.content?.trim()
+        if (!out) throw new Error('Empty response from provider')
+        toast.success(t('prompt.translateSuccess'))
+        return out
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Translation failed'
         toast.error(msg)

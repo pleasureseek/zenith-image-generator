@@ -21,10 +21,8 @@
 ## 功能特性
 
 - **多 AI 提供商** - Gitee AI、HuggingFace Spaces、ModelScope
-- **图片转视频** - 从图片生成视频 (Gitee AI)
 - **深色模式 UI** - Gradio 风格毛玻璃效果
 - **灵活尺寸** - 多种宽高比 (1:1, 16:9, 9:16, 4:3 等)
-- **4x 放大** - RealESRGAN 集成
 - **安全存储** - API Key 使用 AES-256-GCM 加密
 - **Token 轮询** - 多 API Key 自动切换，遇到限流自动换用下一个
 - **历史记录（轻量）** - 仅存元数据（URL + 参数）到 localStorage，24 小时自动过期清理
@@ -98,7 +96,31 @@ pnpm dev:web
 
 - 接口返回的是**原始图片 URL**（例如 HuggingFace Space 的 `gradio_api/file=...`）。
 - 部分 URL 是**临时文件**（HF Space 通常 24 小时左右会失效）。
-- 如需绕过 CORS 下载，可使用代理接口：`GET /api/proxy-image?url=...`。
+
+## API 使用
+
+部署后可直接调用 OpenAI 格式 API：
+
+```bash
+curl -X POST https://your-project.pages.dev/v1/images/generations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer gitee:your-gitee-api-key" \
+  -d '{
+    "model": "gitee/z-image-turbo",
+    "prompt": "a cute cat",
+    "size": "1024x1024",
+    "steps": 9,
+    "n": 1,
+    "response_format": "url"
+  }'
+```
+
+说明：
+
+- Provider 路由通过 `model` 前缀区分：
+  - `gitee/...` -> Gitee AI（`Authorization: Bearer gitee:...`）
+  - `ms/...` -> ModelScope（`Authorization: Bearer ms:...`）
+  - 无前缀 -> HuggingFace（可选 token；`Authorization: Bearer <token>` 或 `Authorization: Bearer hf:<token>`）
 
 ## 安全性
 

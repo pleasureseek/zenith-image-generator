@@ -2,7 +2,7 @@
  * Global Error Handler Middleware
  */
 
-import { ApiError, type ApiErrorResponse, Errors } from '@z-image/shared'
+import { ApiError, Errors, type OpenAIErrorResponse } from '@z-image/shared'
 import type { Context, ErrorHandler, NotFoundHandler } from 'hono'
 
 /**
@@ -27,7 +27,14 @@ export function toApiError(err: unknown): ApiError {
  */
 export function sendError(c: Context, err: unknown): Response {
   const apiError = toApiError(err)
-  const response: ApiErrorResponse = apiError.toResponse()
+  const response: OpenAIErrorResponse = {
+    error: {
+      message: apiError.message,
+      type: apiError.code,
+      param: apiError.details?.field ?? null,
+      code: apiError.code,
+    },
+  }
   return c.json(response, apiError.statusCode as 400 | 401 | 429 | 500 | 502 | 504)
 }
 
@@ -67,11 +74,8 @@ export const errorHandler: ErrorHandler = (err, c) => {
  * Not found handler for Hono
  */
 export const notFoundHandler: NotFoundHandler = (c) => {
-  return c.json(
-    {
-      error: 'Not found',
-      code: 'NOT_FOUND',
-    },
-    404
-  )
+  const response: OpenAIErrorResponse = {
+    error: { message: 'Not found', type: 'NOT_FOUND', param: null, code: 'NOT_FOUND' },
+  }
+  return c.json(response, 404)
 }

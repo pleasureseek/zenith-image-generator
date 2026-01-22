@@ -179,6 +179,24 @@ export function isQuotaError(error: unknown): boolean {
     // Check error code
     if (err.code === 'RATE_LIMITED' || err.code === 'QUOTA_EXCEEDED') return true
 
+    // OpenAI-style nested error object
+    if (err.error && typeof err.error === 'object') {
+      const oai = err.error as Record<string, unknown>
+      if (oai.code === 'RATE_LIMITED' || oai.code === 'QUOTA_EXCEEDED') return true
+      if (oai.type === 'RATE_LIMITED' || oai.type === 'QUOTA_EXCEEDED') return true
+      if (typeof oai.message === 'string') {
+        const msg = oai.message.toLowerCase()
+        if (
+          msg.includes('429') ||
+          msg.includes('rate limit') ||
+          msg.includes('quota') ||
+          msg.includes('too many requests')
+        ) {
+          return true
+        }
+      }
+    }
+
     // Check message
     if (typeof err.message === 'string') {
       const msg = err.message.toLowerCase()

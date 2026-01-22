@@ -69,7 +69,7 @@ pnpm test:coverage
 
 **Test Structure:**
 
-- `apps/api/src/__tests__/` - API route integration tests
+- `apps/api/src/openai/__tests__/` - OpenAI-format route tests (`/v1/*`)
 - `apps/api/src/providers/__tests__/` - Provider unit tests (mocked fetch)
 - `apps/api/src/middleware/__tests__/` - Middleware tests
 - `apps/api/src/utils/__tests__/` - Utility function tests

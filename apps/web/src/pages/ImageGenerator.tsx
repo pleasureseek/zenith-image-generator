@@ -11,7 +11,6 @@ export default function ImageGenerator() {
   const [showSettings, setShowSettings] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const {
-    tokens,
     currentToken,
     provider,
     model,
@@ -29,8 +28,6 @@ export default function ImageGenerator() {
     uhd,
     showInfo,
     isBlurred,
-    isUpscaled,
-    isUpscaling,
     isOptimizing,
     isTranslating,
     llmSettings,
@@ -55,7 +52,6 @@ export default function ImageGenerator() {
     handleRatioSelect,
     handleUhdToggle,
     handleDownload,
-    handleUpscale,
     handleDelete,
     handleGenerate,
     handleLoadFromHistory,
@@ -110,12 +106,8 @@ export default function ImageGenerator() {
                 elapsed={elapsed}
                 showInfo={showInfo}
                 isBlurred={isBlurred}
-                isUpscaled={isUpscaled}
-                isUpscaling={isUpscaling}
-                giteeToken={tokens.gitee}
                 setShowInfo={setShowInfo}
                 setIsBlurred={setIsBlurred}
-                handleUpscale={handleUpscale}
                 handleDownload={handleDownload}
                 handleDelete={handleDelete}
                 onRegenerate={handleGenerate}

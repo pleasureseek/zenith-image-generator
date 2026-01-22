@@ -7,36 +7,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Get API URL for proxy endpoint
- */
-function getApiUrl(): string {
-  return import.meta.env.VITE_API_URL || ''
-}
-
-/**
- * Check if URL needs to be proxied (external URLs that may have CORS issues)
- */
-function needsProxy(url: string): boolean {
-  if (!url.startsWith('http')) return false
-  try {
-    const parsed = new URL(url)
-    // External URLs that are not same-origin need proxy
-    return parsed.origin !== window.location.origin
-  } catch {
-    return false
-  }
-}
-
-/**
- * Get proxied URL for external images
- */
-function getProxiedUrl(url: string): string {
-  if (!needsProxy(url)) return url
-  const apiUrl = getApiUrl()
-  return `${apiUrl}/api/proxy-image?url=${encodeURIComponent(url)}`
-}
-
-/**
  * Check if URL is from HuggingFace
  */
 function isHuggingFaceUrl(url: string): boolean {
@@ -57,7 +27,7 @@ export async function downloadImage(
   if (isHF && url.startsWith('http')) {
     try {
       // Fetch the image and convert to PNG blob
-      const response = await fetch(getProxiedUrl(url))
+      const response = await fetch(url)
       const blob = await response.blob()
 
       // Create a canvas to convert to PNG
@@ -101,14 +71,14 @@ export async function downloadImage(
       console.error('Failed to convert image to PNG, falling back to direct download:', error)
       // Fallback to direct download
       const a = document.createElement('a')
-      a.href = getProxiedUrl(url)
+      a.href = url
       a.download = filename
       a.click()
     }
   } else {
     // Direct download for non-HF images
     const a = document.createElement('a')
-    a.href = getProxiedUrl(url)
+    a.href = url
     a.download = filename
     a.click()
   }
@@ -126,9 +96,7 @@ async function convertToPngBlob(url: string): Promise<Blob> {
     const response = await fetch(url)
     blob = await response.blob()
   } else {
-    // Use proxy for external URLs
-    const fetchUrl = getProxiedUrl(url)
-    const response = await fetch(fetchUrl)
+    const response = await fetch(url)
     blob = await response.blob()
   }
 
@@ -207,9 +175,7 @@ export async function downloadImagesAsZip(
           const response = await fetch(url)
           blob = await response.blob()
         } else {
-          // Use proxy for external URLs
-          const fetchUrl = getProxiedUrl(url)
-          const response = await fetch(fetchUrl)
+          const response = await fetch(url)
           blob = await response.blob()
         }
         imagesFolder.file(filename, blob)

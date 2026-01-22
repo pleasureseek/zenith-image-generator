@@ -356,7 +356,7 @@ CORS_ORIGINS=https://your-app.pages.dev,https://your-domain.com
 ```
 请求流程 (Cloudflare Pages):
 用户 → Cloudflare CDN → Pages (静态资源)
-                     → Pages Functions (/api/*) → 第三方 AI API
+                     → Pages Functions (/v1/*) → 第三方 AI API
 
 请求流程 (独立部署):
 用户 → CDN → 前端 (Vercel/Netlify)

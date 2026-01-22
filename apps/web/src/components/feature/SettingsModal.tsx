@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { type CustomModelInfo, fetchCustomModels } from '@/lib/api'
+import { fetchOpenAIModels } from '@/lib/api'
 import {
   getLLMModels,
   LLM_PROVIDER_OPTIONS,
@@ -82,8 +82,8 @@ export function SettingsModal({
   })
 
   // Custom models state for optimize and translate
-  const [optimizeCustomModels, setOptimizeCustomModels] = useState<CustomModelInfo[]>([])
-  const [translateCustomModels, setTranslateCustomModels] = useState<CustomModelInfo[]>([])
+  const [optimizeCustomModels, setOptimizeCustomModels] = useState<Array<{ id: string }>>([])
+  const [translateCustomModels, setTranslateCustomModels] = useState<Array<{ id: string }>>([])
   const [isLoadingOptimizeModels, setIsLoadingOptimizeModels] = useState(false)
   const [isLoadingTranslateModels, setIsLoadingTranslateModels] = useState(false)
   const [optimizeModelsError, setOptimizeModelsError] = useState<string | null>(null)
@@ -105,15 +105,15 @@ export function SettingsModal({
     setIsLoadingOptimizeModels(true)
     setOptimizeModelsError(null)
 
-    const result = await fetchCustomModels(baseUrl, apiKey)
-    if (result.success) {
-      setOptimizeCustomModels(result.data.models)
-      // Auto-select first model if none selected
-      if (result.data.models.length > 0 && !llmSettings.customOptimizeConfig.model) {
-        setCustomOptimizeConfig({ model: result.data.models[0].id })
+    try {
+      const models = await fetchOpenAIModels(baseUrl, apiKey)
+      const simplified = models.map((m) => ({ id: m.id }))
+      setOptimizeCustomModels(simplified)
+      if (simplified.length > 0 && !llmSettings.customOptimizeConfig.model) {
+        setCustomOptimizeConfig({ model: simplified[0].id })
       }
-    } else {
-      setOptimizeModelsError(result.error)
+    } catch (err) {
+      setOptimizeModelsError(err instanceof Error ? err.message : 'Failed to fetch models')
       setOptimizeCustomModels([])
     }
 
@@ -131,15 +131,15 @@ export function SettingsModal({
     setIsLoadingTranslateModels(true)
     setTranslateModelsError(null)
 
-    const result = await fetchCustomModels(baseUrl, apiKey)
-    if (result.success) {
-      setTranslateCustomModels(result.data.models)
-      // Auto-select first model if none selected
-      if (result.data.models.length > 0 && !llmSettings.customTranslateConfig.model) {
-        setCustomTranslateConfig({ model: result.data.models[0].id })
+    try {
+      const models = await fetchOpenAIModels(baseUrl, apiKey)
+      const simplified = models.map((m) => ({ id: m.id }))
+      setTranslateCustomModels(simplified)
+      if (simplified.length > 0 && !llmSettings.customTranslateConfig.model) {
+        setCustomTranslateConfig({ model: simplified[0].id })
       }
-    } else {
-      setTranslateModelsError(result.error)
+    } catch (err) {
+      setTranslateModelsError(err instanceof Error ? err.message : 'Failed to fetch models')
       setTranslateCustomModels([])
     }
 
@@ -410,7 +410,7 @@ export function SettingsModal({
                         <SelectContent className="bg-zinc-900/70 backdrop-blur-md border-zinc-700 text-white max-h-60">
                           {optimizeCustomModels.map((m) => (
                             <SelectItem key={m.id} value={m.id}>
-                              {m.name}
+                              {m.id}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -586,7 +586,7 @@ export function SettingsModal({
                         <SelectContent className="bg-zinc-900/70 backdrop-blur-md border-zinc-700 text-white max-h-60">
                           {translateCustomModels.map((m) => (
                             <SelectItem key={m.id} value={m.id}>
-                              {m.name}
+                              {m.id}
                             </SelectItem>
                           ))}
                         </SelectContent>

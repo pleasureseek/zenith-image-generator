@@ -21,16 +21,14 @@ batch generation, and one-click deployment to Cloudflare Pages.
 ## Features
 
 - **Multiple AI Providers** - Gitee AI, HuggingFace Spaces, ModelScope
-- **Image-to-Video** - Generate videos from images (Gitee AI)
 - **Dark Mode UI** - Gradio-style with frosted glass effects
 - **Flexible Sizing** - Multiple aspect ratios (1:1, 16:9, 9:16, 4:3, etc.)
-- **4x Upscaling** - RealESRGAN integration
 - **Secure Storage** - API keys encrypted with AES-256-GCM
 - **Token Rotation** - Multiple API keys with automatic failover on rate limits
 - **History (Lightweight)** - Stores metadata (URL + params) in localStorage with 24h TTL
 - **Flow Mode** - Visual canvas for batch generation (experimental)
   - Images are referenced by remote URLs (no blob caching)
-  - Flow state is persisted locally; downloads use a proxy endpoint for CORS-safe fetches
+  - Flow state is persisted locally
 
 ## Token Rotation
 
@@ -92,20 +90,30 @@ Open `http://localhost:5173`
 
 ## API Usage
 
-After deployment, you can call the API directly:
+After deployment, you can call the OpenAI-format API directly:
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-gitee-api-key" \
-  -d '{"prompt": "a cute cat", "width": 1024, "height": 1024}'
+  -H "Authorization: Bearer gitee:your-gitee-api-key" \
+  -d '{
+    "model": "gitee/z-image-turbo",
+    "prompt": "a cute cat",
+    "size": "1024x1024",
+    "steps": 9,
+    "n": 1,
+    "response_format": "url"
+  }'
 ```
 
 Notes:
 
 - The API returns the **raw provider image URL** (e.g. HuggingFace Space `gradio_api/file=...`).
 - Some provider URLs are **temporary** (HF Space files often expire around 24 hours).
-- For CORS-safe downloads, use the built-in proxy endpoint: `GET /api/proxy-image?url=...`.
+- Provider routing is via the `model` prefix:
+  - `gitee/...` -> Gitee AI (`Authorization: Bearer gitee:...`)
+  - `ms/...` -> ModelScope (`Authorization: Bearer ms:...`)
+  - no prefix -> HuggingFace (token optional; `Authorization: Bearer <token>` or `Authorization: Bearer hf:<token>`)
 
 📖 **[Full API Reference](./docs/en/API.md)** - Providers, parameters, code examples
 

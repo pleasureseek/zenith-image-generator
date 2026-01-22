@@ -1,5 +1,5 @@
 import { Handle, type NodeProps, Position } from '@xyflow/react'
-import type { ImageDetails } from '@z-image/shared'
+import type { ImageDetails, OpenAIErrorResponse, OpenAIImageResponse } from '@z-image/shared'
 import { AlertCircle, Download, Loader2, ZoomIn } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,11 +19,6 @@ interface ImageNodeProps extends NodeProps {
   data: ImageData
 }
 
-interface GenerateApiResponse {
-  error?: string
-  imageDetails?: ImageDetails
-}
-
 const MAX_RETRY_ATTEMPTS = 10
 
 async function generateImageApiSingle(
@@ -39,40 +34,62 @@ async function generateImageApiSingle(
   const { PROVIDER_CONFIGS } = await import('@/lib/constants')
   const providerConfig = PROVIDER_CONFIGS[provider]
 
-  const res = await fetch(`${baseUrl}/api/generate`, {
+  const start = Date.now()
+  const res = await fetch(`${baseUrl}/v1/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { [providerConfig.authHeader]: token }),
+      ...(token && {
+        Authorization: `Bearer ${
+          provider === 'gitee'
+            ? `gitee:${token}`
+            : provider === 'modelscope'
+              ? `ms:${token}`
+              : token
+        }`,
+      }),
     },
     body: JSON.stringify({
-      provider,
       prompt,
-      model,
-      width,
-      height,
+      model:
+        provider === 'gitee' ? `gitee/${model}` : provider === 'modelscope' ? `ms/${model}` : model,
+      size: `${width}x${height}`,
       steps: 9,
       seed,
+      n: 1,
+      response_format: 'url',
     }),
   })
 
-  const text = await res.text()
-  if (!text) throw new Error('Empty response from server')
-
-  let data: GenerateApiResponse
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error(`Invalid response: ${text.slice(0, 100)}`)
-  }
-
+  const json = (await res.json().catch(() => null)) as
+    | OpenAIImageResponse
+    | OpenAIErrorResponse
+    | null
   if (!res.ok) {
-    const error = new Error(data.error || 'Failed to generate') as Error & { status?: number }
+    const error = new Error(
+      (json as OpenAIErrorResponse | null)?.error?.message || 'Failed to generate'
+    ) as Error & {
+      status?: number
+    }
     error.status = res.status
     throw error
   }
-  if (!data.imageDetails) throw new Error('No image details returned')
-  return data.imageDetails
+
+  const url = (json as OpenAIImageResponse | null)?.data?.[0]?.url
+  if (!url) throw new Error('No image returned')
+
+  const duration = `${((Date.now() - start) / 1000).toFixed(1)}s`
+  return {
+    url,
+    provider: providerConfig.name,
+    model,
+    dimensions: `${width} x ${height}`,
+    duration,
+    seed,
+    steps: 9,
+    prompt,
+    negativePrompt: '',
+  }
 }
 
 async function generateImageWithRotation(

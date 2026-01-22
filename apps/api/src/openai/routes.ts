@@ -1,8 +1,9 @@
 import { Errors, getModelsByProvider, PROVIDER_CONFIGS } from '@z-image/shared'
-import type { Hono } from 'hono'
-import { sendError } from '../middleware'
+import { Hono } from 'hono'
+import { bodyLimit, rateLimitPresets, sendError, timeout } from '../middleware'
 import { getProvider } from '../providers'
 import { convertRequest, convertResponse, parseBearerToken } from './adapter'
+import { handleChatCompletion } from './chat'
 import { resolveModel } from './model-resolver'
 import type { OpenAIImageRequest, OpenAIModelsListResponse } from './types'
 
@@ -45,7 +46,12 @@ function listModels(): OpenAIModelsListResponse {
 }
 
 export function registerOpenAIRoutes(app: Hono) {
-  app.post('/images/generations', async (c) => {
+  const v1 = new Hono().basePath('/v1')
+
+  // Base middleware for all /v1 routes.
+  v1.use('/*', timeout(120000))
+
+  v1.post('/images/generations', bodyLimit(50 * 1024), rateLimitPresets.generate, async (c) => {
     let body: OpenAIImageRequest
     try {
       body = (await c.req.json()) as OpenAIImageRequest
@@ -101,5 +107,14 @@ export function registerOpenAIRoutes(app: Hono) {
     }
   })
 
-  app.get('/models', (c) => c.json(listModels()))
+  v1.get('/models', rateLimitPresets.readonly, (c) => c.json(listModels()))
+
+  v1.post(
+    '/chat/completions',
+    bodyLimit(50 * 1024),
+    rateLimitPresets.optimize,
+    handleChatCompletion
+  )
+
+  app.route('/', v1)
 }

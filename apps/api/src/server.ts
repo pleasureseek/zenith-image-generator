@@ -23,6 +23,7 @@ serve({
 
 console.log(`Server is running on http://localhost:${config.port}`)
 console.log('API endpoints:')
-console.log('  GET  /api/         - Health check')
-console.log('  POST /api/generate - Image generation')
-console.log('  POST /api/upscale  - Image upscaling')
+console.log('  GET  /             - Health check')
+console.log('  POST /v1/images/generations - Image generation (OpenAI format)')
+console.log('  GET  /v1/models            - Model list (OpenAI format)')
+console.log('  POST /v1/chat/completions  - Chat completions (OpenAI format)')

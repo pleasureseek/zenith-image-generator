@@ -22,34 +22,35 @@ async function generateImage(
   width: number,
   height: number
 ): Promise<string> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/generate`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/v1/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': apiKey,
+      Authorization: `Bearer gitee:${apiKey}`,
     },
     body: JSON.stringify({
       prompt,
       negative_prompt: '',
-      model: 'z-image-turbo',
-      width,
-      height,
-      num_inference_steps: 9,
+      model: 'gitee/z-image-turbo',
+      size: `${width}x${height}`,
+      steps: 9,
+      n: 1,
+      response_format: 'url',
     }),
   })
 
-  const text = await res.text()
-  if (!text) throw new Error('Empty response from server')
+  const json = (await res.json().catch(() => null)) as
+    | { data?: Array<{ url?: string }> }
+    | { error?: { message?: string } }
+    | null
 
-  let data: { error?: string; url?: string; b64_json?: string }
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error(`Invalid response: ${text.slice(0, 100)}`)
-  }
-
-  if (!res.ok) throw new Error(data.error || 'Failed to generate')
-  return data.url || `data:image/png;base64,${data.b64_json}`
+  if (!res.ok)
+    throw new Error(
+      (json as { error?: { message?: string } } | null)?.error?.message || 'Failed to generate'
+    )
+  const url = (json as { data?: Array<{ url?: string }> } | null)?.data?.[0]?.url
+  if (!url) throw new Error('No image returned')
+  return url
 }
 
 function ImageGridNode({ data }: NodeProps) {

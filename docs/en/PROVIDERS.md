@@ -18,7 +18,7 @@ Official China-based AI platform with high-quality image generation.
 
 | Field | Value |
 |-------|-------|
-| Auth Header | `X-API-Key` |
+| Auth Header | `Authorization: Bearer gitee:<token>` |
 | Auth Required | Yes |
 | Image Format | PNG |
 | Get API Key | [ai.gitee.com](https://ai.gitee.com) |
@@ -41,7 +41,7 @@ Free community-powered AI platform using Gradio Spaces.
 
 | Field | Value |
 |-------|-------|
-| Auth Header | `X-HF-Token` |
+| Auth Header | `Authorization: Bearer <token>` (or `Bearer hf:<token>`) |
 | Auth Required | No (rate limited without token) |
 | Image Format | WebP |
 | Get Token | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
@@ -63,7 +63,6 @@ Free community-powered AI platform using Gradio Spaces.
 | qwen-image-fast | `https://mcp-tools-qwen-image-fast.hf.space` |
 | ovis-image | `https://aidc-ai-ovis-image-7b.hf.space` |
 | flux-1-schnell | `https://black-forest-labs-flux-1-schnell.hf.space` |
-| upscaler | `https://tuan2308-upscaler.hf.space` |
 
 ---
 
@@ -73,7 +72,7 @@ China-based AI model hosting platform by Alibaba.
 
 | Field | Value |
 |-------|-------|
-| Auth Header | `X-MS-Token` |
+| Auth Header | `Authorization: Bearer ms:<token>` |
 | Auth Required | Yes |
 | Image Format | PNG |
 | Get Token | [modelscope.cn](https://modelscope.cn) |
@@ -114,43 +113,48 @@ China-based AI model hosting platform by Alibaba.
 ### Gitee AI with Z-Image Turbo
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-gitee-api-key" \
+  -H "Authorization: Bearer gitee:your-gitee-api-key" \
   -d '{
-    "provider": "gitee",
-    "model": "z-image-turbo",
+    "model": "gitee/z-image-turbo",
     "prompt": "a cute cat",
     "negative_prompt": "low quality, blurry",
-    "steps": 9
+    "size": "1024x1024",
+    "steps": 9,
+    "n": 1,
+    "response_format": "url"
   }'
 ```
 
 ### HuggingFace with FLUX.1 Schnell
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-HF-Token: your-hf-token" \
   -d '{
-    "provider": "huggingface",
     "model": "flux-1-schnell",
     "prompt": "a cute cat",
-    "steps": 8
+    "size": "1024x1024",
+    "steps": 8,
+    "n": 1,
+    "response_format": "url"
   }'
 ```
 
 ### ModelScope with FLUX.2
 
 ```bash
-curl -X POST https://your-project.pages.dev/api/generate \
+curl -X POST https://your-project.pages.dev/v1/images/generations \
   -H "Content-Type: application/json" \
-  -H "X-MS-Token: your-ms-token" \
+  -H "Authorization: Bearer ms:your-ms-token" \
   -d '{
-    "provider": "modelscope",
-    "model": "black-forest-labs/FLUX.2-dev",
+    "model": "ms/flux-2",
     "prompt": "a cute cat",
+    "size": "1024x1024",
     "steps": 24,
-    "guidanceScale": 3.5
+    "guidance_scale": 3.5,
+    "n": 1,
+    "response_format": "url"
   }'
 ```

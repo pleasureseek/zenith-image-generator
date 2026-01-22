@@ -314,11 +314,7 @@ export async function clearAllBlobs(): Promise<void> {
  * Convert URL to Blob using proxy for external URLs
  */
 export async function urlToBlob(url: string): Promise<Blob> {
-  const apiUrl = import.meta.env.VITE_API_URL || ''
-  const isExternal = url.startsWith('http') && !url.includes(window.location.host)
-  const fetchUrl = isExternal ? `${apiUrl}/api/proxy-image?url=${encodeURIComponent(url)}` : url
-
-  const response = await fetch(fetchUrl)
+  const response = await fetch(url)
   return await response.blob()
 }
 

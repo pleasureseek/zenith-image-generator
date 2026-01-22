@@ -69,7 +69,7 @@ pnpm test:coverage
 
 **测试结构：**
 
-- `apps/api/src/__tests__/` - API 路由集成测试
+- `apps/api/src/openai/__tests__/` - OpenAI 格式路由测试（`/v1/*`）
 - `apps/api/src/providers/__tests__/` - Provider 单元测试（模拟 fetch）
 - `apps/api/src/middleware/__tests__/` - 中间件测试
 - `apps/api/src/utils/__tests__/` - 工具函数测试

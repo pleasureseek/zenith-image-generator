@@ -49,11 +49,11 @@ function cleanupExpiredEntries(): void {
  * Default key generator - uses API key or IP address
  */
 function defaultKeyGenerator(c: Parameters<MiddlewareHandler>[0]): string {
-  // Prefer API key for authenticated requests
-  const apiKey = c.req.header('X-API-Key')
-  if (apiKey) {
-    // Hash the API key to avoid storing it directly
-    return `key:${hashString(apiKey)}`
+  // Prefer Authorization token for authenticated requests (OpenAI-style).
+  const auth = c.req.header('Authorization')
+  if (auth?.startsWith('Bearer ')) {
+    const raw = auth.slice('Bearer '.length).trim()
+    if (raw) return `key:${hashString(raw)}`
   }
 
   // Fall back to IP address

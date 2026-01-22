@@ -1,9 +1,9 @@
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import { Download, Eye, EyeOff, GitBranch, Sparkles, Trash2 } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'
+import { buildImageTokenWithPrefix, getFullImageModelId } from '@/lib/api'
 import { loadSettings, type ProviderType } from '@/lib/constants'
 import { loadAllTokens } from '@/lib/crypto'
-
 import type { GeneratedImage } from '@/lib/flow-storage'
 
 export type AIResultNodeData = {
@@ -19,12 +19,7 @@ export type AIResultNodeData = {
   onDelete?: (id: string) => void
 }
 
-import type { ImageDetails } from '@z-image/shared'
-
-interface GenerateApiResponse {
-  error?: string
-  imageDetails?: ImageDetails
-}
+import type { ImageDetails, OpenAIErrorResponse, OpenAIImageResponse } from '@z-image/shared'
 
 async function generateImageApi(
   prompt: string,
@@ -36,39 +31,54 @@ async function generateImageApi(
   seed?: number
 ): Promise<ImageDetails> {
   const baseUrl = import.meta.env.VITE_API_URL || ''
-  const { PROVIDER_CONFIGS } = await import('@/lib/constants')
+  const { PROVIDER_CONFIGS, getModelsByProvider } = await import('@/lib/constants')
   const providerConfig = PROVIDER_CONFIGS[provider]
+  const start = Date.now()
+  const finalSeed = typeof seed === 'number' ? seed : Math.floor(Math.random() * 2147483647)
 
-  const res = await fetch(`${baseUrl}/api/generate`, {
+  const res = await fetch(`${baseUrl}/v1/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { [providerConfig.authHeader]: token }),
+      ...(token && { Authorization: `Bearer ${buildImageTokenWithPrefix(provider, token)}` }),
     },
     body: JSON.stringify({
-      provider,
       prompt,
-      model,
-      width,
-      height,
+      model: getFullImageModelId(provider, model),
+      size: `${width}x${height}`,
       steps: 9,
-      ...(typeof seed === 'number' ? { seed } : {}),
+      seed: finalSeed,
+      n: 1,
+      response_format: 'url',
     }),
   })
 
-  const text = await res.text()
-  if (!text) throw new Error('Empty response from server')
-
-  let data: GenerateApiResponse
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error(`Invalid response: ${text.slice(0, 100)}`)
+  const json = (await res.json().catch(() => null)) as
+    | OpenAIImageResponse
+    | OpenAIErrorResponse
+    | null
+  if (!res.ok) {
+    const msg = (json as OpenAIErrorResponse | null)?.error?.message || 'Failed to generate'
+    throw new Error(msg)
   }
 
-  if (!res.ok) throw new Error(data.error || 'Failed to generate')
-  if (!data.imageDetails) throw new Error('No image details returned')
-  return data.imageDetails
+  const url = (json as OpenAIImageResponse | null)?.data?.[0]?.url
+  if (!url) throw new Error('No image returned')
+
+  const duration = `${((Date.now() - start) / 1000).toFixed(1)}s`
+  const modelName = getModelsByProvider(provider).find((m) => m.id === model)?.name || model
+
+  return {
+    url,
+    provider: providerConfig.name,
+    model: modelName,
+    dimensions: `${width} x ${height}`,
+    duration,
+    seed: finalSeed,
+    steps: 9,
+    prompt,
+    negativePrompt: '',
+  }
 }
 
 function AIResultNode({ id, data, selected }: NodeProps) {
