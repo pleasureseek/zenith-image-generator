@@ -61,7 +61,7 @@ export function convertRequest(req: OpenAIImageRequest): OpenAIConvertedRequest 
     throw Errors.invalidDimensions(dimensionsValidation.error || 'Invalid dimensions')
   }
 
-  const steps = req.steps ?? (req.quality === 'hd' ? 30 : undefined)
+  const steps = req.steps ?? req.num_inference_steps ?? (req.quality === 'hd' ? 30 : undefined)
   if (steps !== undefined) {
     const stepsValidation = validateSteps(steps)
     if (!stepsValidation.valid) {
@@ -76,7 +76,7 @@ export function convertRequest(req: OpenAIImageRequest): OpenAIConvertedRequest 
     height,
     steps,
     seed: req.seed,
-    guidanceScale: req.guidance_scale,
+    guidanceScale: req.guidance_scale ?? req.cfg_scale,
   }
 }
 

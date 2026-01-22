@@ -18,12 +18,34 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     },
   },
   {
+    id: 'GLM-Image',
+    name: 'GLM Image',
+    provider: 'gitee',
+    features: {
+      negativePrompt: true,
+      steps: { min: 1, max: 50, default: 30 },
+      guidanceScale: { min: 0, max: 20, default: 1.5 },
+      seed: true,
+    },
+  },
+  {
     id: 'Qwen-Image',
     name: 'Qwen Image',
     provider: 'gitee',
     features: {
       negativePrompt: true,
       steps: { min: 4, max: 50, default: 20 },
+      seed: true,
+    },
+  },
+  {
+    id: 'Qwen-Image-2512',
+    name: 'Qwen Image 2512',
+    provider: 'gitee',
+    features: {
+      negativePrompt: true,
+      steps: { min: 1, max: 50, default: 4 },
+      guidanceScale: { min: 0, max: 20, default: 1 },
       seed: true,
     },
   },
@@ -109,6 +131,16 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     features: {
       negativePrompt: true,
       steps: { min: 1, max: 20, default: 9 },
+      seed: true,
+    },
+  },
+  {
+    id: 'Qwen/Qwen-Image-2512',
+    name: 'Qwen Image 2512',
+    provider: 'modelscope',
+    features: {
+      negativePrompt: true,
+      steps: { min: 1, max: 50, default: 4 },
       seed: true,
     },
   },

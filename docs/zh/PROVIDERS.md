@@ -6,9 +6,9 @@
 
 | 供应商 | 需要认证 | 图片格式 | 模型数量 |
 |--------|----------|----------|----------|
-| [Gitee AI](#gitee-ai) | 是 | PNG | 5 |
+| [Gitee AI](#gitee-ai) | 是 | PNG | 7 |
 | [HuggingFace](#huggingface) | 可选 | WebP | 4 |
-| [ModelScope](#modelscope) | 是 | PNG | 4 |
+| [ModelScope](#modelscope) | 是 | PNG | 5 |
 
 ---
 
@@ -28,7 +28,9 @@
 | 模型 ID | 显示名称 | 负面提示词 | 步数范围 | 引导比例 |
 |---------|----------|------------|----------|----------|
 | `z-image-turbo` | Z-Image Turbo | 支持 | 1-20 (默认: 9) | - |
+| `GLM-Image` | GLM Image | 支持 | 1-50 (默认: 30) | 0-20 (默认: 1.5) |
 | `Qwen-Image` | Qwen Image | 支持 | 4-50 (默认: 20) | - |
+| `Qwen-Image-2512` | Qwen Image 2512 | 支持 | 1-50 (默认: 4) | 0-20 (默认: 1) |
 | `flux-1-schnell` | FLUX.1 Schnell | 不支持 | 1-50 (默认: 8) | 0-50 (默认: 7.5) |
 | `FLUX_1-Krea-dev` | FLUX.1 Krea | 不支持 | 1-50 (默认: 20) | 0-20 (默认: 4.5) |
 | `FLUX.1-dev` | FLUX.1 | 不支持 | 1-50 (默认: 20) | 0-20 (默认: 4.5) |
@@ -82,6 +84,7 @@
 | 模型 ID | 显示名称 | 负面提示词 | 步数范围 | 引导比例 |
 |---------|----------|------------|----------|----------|
 | `Tongyi-MAI/Z-Image-Turbo` | Z-Image Turbo | 支持 | 1-20 (默认: 9) | - |
+| `Qwen/Qwen-Image-2512` | Qwen Image 2512 | 支持 | 1-50 (默认: 4) | - |
 | `black-forest-labs/FLUX.2-dev` | FLUX.2 | 支持 | 1-50 (默认: 24) | 1-10 (默认: 3.5) |
 | `black-forest-labs/FLUX.1-Krea-dev` | FLUX.1 Krea | 支持 | 1-50 (默认: 24) | 1-20 (默认: 3.5) |
 | `MusePublic/489_ckpt_FLUX_1` | FLUX.1 | 支持 | 1-50 (默认: 24) | 1-20 (默认: 3.5) |
@@ -94,15 +97,15 @@
 
 | 供应商 | 支持负面提示词的模型 |
 |--------|---------------------|
-| Gitee AI | `z-image-turbo`, `Qwen-Image` |
+| Gitee AI | `z-image-turbo`, `GLM-Image`, `Qwen-Image`, `Qwen-Image-2512` |
 | HuggingFace | 无 |
-| ModelScope | `Tongyi-MAI/Z-Image-Turbo`, `FLUX.2-dev`, `FLUX.1-Krea-dev`, `FLUX.1` |
+| ModelScope | `Tongyi-MAI/Z-Image-Turbo`, `Qwen/Qwen-Image-2512`, `FLUX.2-dev`, `FLUX.1-Krea-dev`, `FLUX.1` |
 
 ### 引导比例支持
 
 | 供应商 | 支持引导比例的模型 |
 |--------|-------------------|
-| Gitee AI | `flux-1-schnell`, `FLUX_1-Krea-dev`, `FLUX.1-dev` |
+| Gitee AI | `GLM-Image`, `Qwen-Image-2512`, `flux-1-schnell`, `FLUX_1-Krea-dev`, `FLUX.1-dev` |
 | HuggingFace | 无 |
 | ModelScope | `FLUX.2-dev`, `FLUX.1-Krea-dev`, `FLUX.1` |
 

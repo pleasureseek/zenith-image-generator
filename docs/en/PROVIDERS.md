@@ -6,9 +6,9 @@ This document lists all supported AI providers and their available models.
 
 | Provider | Auth Required | Image Format | Models Count |
 |----------|---------------|--------------|--------------|
-| [Gitee AI](#gitee-ai) | Yes | PNG | 5 |
+| [Gitee AI](#gitee-ai) | Yes | PNG | 7 |
 | [HuggingFace](#huggingface) | Optional | WebP | 4 |
-| [ModelScope](#modelscope) | Yes | PNG | 4 |
+| [ModelScope](#modelscope) | Yes | PNG | 5 |
 
 ---
 
@@ -28,7 +28,9 @@ Official China-based AI platform with high-quality image generation.
 | Model ID | Display Name | Negative Prompt | Steps | Guidance Scale |
 |----------|--------------|-----------------|-------|----------------|
 | `z-image-turbo` | Z-Image Turbo | Yes | 1-20 (default: 9) | - |
+| `GLM-Image` | GLM Image | Yes | 1-50 (default: 30) | 0-20 (default: 1.5) |
 | `Qwen-Image` | Qwen Image | Yes | 4-50 (default: 20) | - |
+| `Qwen-Image-2512` | Qwen Image 2512 | Yes | 1-50 (default: 4) | 0-20 (default: 1) |
 | `flux-1-schnell` | FLUX.1 Schnell | No | 1-50 (default: 8) | 0-50 (default: 7.5) |
 | `FLUX_1-Krea-dev` | FLUX.1 Krea | No | 1-50 (default: 20) | 0-20 (default: 4.5) |
 | `FLUX.1-dev` | FLUX.1 | No | 1-50 (default: 20) | 0-20 (default: 4.5) |
@@ -82,6 +84,7 @@ China-based AI model hosting platform by Alibaba.
 | Model ID | Display Name | Negative Prompt | Steps | Guidance Scale |
 |----------|--------------|-----------------|-------|----------------|
 | `Tongyi-MAI/Z-Image-Turbo` | Z-Image Turbo | Yes | 1-20 (default: 9) | - |
+| `Qwen/Qwen-Image-2512` | Qwen Image 2512 | Yes | 1-50 (default: 4) | - |
 | `black-forest-labs/FLUX.2-dev` | FLUX.2 | Yes | 1-50 (default: 24) | 1-10 (default: 3.5) |
 | `black-forest-labs/FLUX.1-Krea-dev` | FLUX.1 Krea | Yes | 1-50 (default: 24) | 1-20 (default: 3.5) |
 | `MusePublic/489_ckpt_FLUX_1` | FLUX.1 | Yes | 1-50 (default: 24) | 1-20 (default: 3.5) |
@@ -94,15 +97,15 @@ China-based AI model hosting platform by Alibaba.
 
 | Provider | Models with Negative Prompt |
 |----------|----------------------------|
-| Gitee AI | `z-image-turbo`, `Qwen-Image` |
+| Gitee AI | `z-image-turbo`, `GLM-Image`, `Qwen-Image`, `Qwen-Image-2512` |
 | HuggingFace | None |
-| ModelScope | `Tongyi-MAI/Z-Image-Turbo`, `FLUX.2-dev`, `FLUX.1-Krea-dev`, `FLUX.1` |
+| ModelScope | `Tongyi-MAI/Z-Image-Turbo`, `Qwen/Qwen-Image-2512`, `FLUX.2-dev`, `FLUX.1-Krea-dev`, `FLUX.1` |
 
 ### Guidance Scale Support
 
 | Provider | Models with Guidance Scale |
 |----------|---------------------------|
-| Gitee AI | `flux-1-schnell`, `FLUX_1-Krea-dev`, `FLUX.1-dev` |
+| Gitee AI | `GLM-Image`, `Qwen-Image-2512`, `flux-1-schnell`, `FLUX_1-Krea-dev`, `FLUX.1-dev` |
 | HuggingFace | None |
 | ModelScope | `FLUX.2-dev`, `FLUX.1-Krea-dev`, `FLUX.1` |
 

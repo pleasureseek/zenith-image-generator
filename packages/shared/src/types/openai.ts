@@ -39,8 +39,13 @@ export interface OpenAIImageRequest {
   quality?: 'standard' | 'hd'
   response_format?: 'url' | 'b64_json'
   negative_prompt?: string
+  // Extensions / provider-compat aliases
+  // - Gitee AI uses `num_inference_steps` instead of `steps`
+  // - Some providers use `cfg_scale` instead of `guidance_scale`
+  num_inference_steps?: number
   steps?: number
   seed?: number
+  cfg_scale?: number
   guidance_scale?: number
 }
 

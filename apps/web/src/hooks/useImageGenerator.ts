@@ -6,6 +6,7 @@
 
 import {
   DEFAULT_TRANSLATE_SYSTEM_PROMPT,
+  getModelByProviderAndId,
   type ImageDetails,
   LLM_PROVIDER_CONFIGS,
 } from '@z-image/shared'
@@ -110,6 +111,8 @@ export function useImageGenerator() {
   // Get models for current provider
   const availableModels = getModelsByProvider(provider)
 
+  const selectedModelConfig = getModelByProviderAndId(provider, model)
+
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true
@@ -124,6 +127,17 @@ export function useImageGenerator() {
       setModel(getDefaultModel(provider))
     }
   }, [provider, model])
+
+  // Update steps when model changes (use model default if available).
+  const lastModelKeyRef = useRef<string>('')
+  useEffect(() => {
+    const key = `${provider}:${model}`
+    if (key === lastModelKeyRef.current) return
+    lastModelKeyRef.current = key
+
+    const stepCfg = selectedModelConfig?.features?.steps
+    if (stepCfg) setSteps(stepCfg.default)
+  }, [provider, model, selectedModelConfig])
 
   useEffect(() => {
     if (initialized.current) {
@@ -254,10 +268,13 @@ export function useImageGenerator() {
       const start = Date.now()
       const seed = Math.floor(Math.random() * 2147483647)
 
+      const supportsNegative = selectedModelConfig?.features?.negativePrompt ?? true
+      const effectiveNegativePrompt = supportsNegative ? negativePrompt : ''
+
       const request = {
         model: getFullImageModelId(provider, model),
         prompt,
-        negative_prompt: negativePrompt,
+        ...(effectiveNegativePrompt ? { negative_prompt: effectiveNegativePrompt } : {}),
         size: `${width}x${height}`,
         steps,
         seed,

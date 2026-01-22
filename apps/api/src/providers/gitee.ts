@@ -73,9 +73,14 @@ export class GiteeProvider implements ImageProvider {
 
     const seed = request.seed ?? Math.floor(Math.random() * MAX_INT32)
 
+    const modelId = request.model || 'z-image-turbo'
+    const isFluxModel = modelId.toLowerCase().includes('flux')
+    const isQwenModel = modelId.toLowerCase().startsWith('qwen-image')
+    const isGlmModel = modelId.toLowerCase() === 'glm-image'
+
     const requestBody: Record<string, unknown> = {
       prompt: request.prompt,
-      model: request.model || 'z-image-turbo',
+      model: modelId,
       width: request.width,
       height: request.height,
       seed,
@@ -83,12 +88,19 @@ export class GiteeProvider implements ImageProvider {
       response_format: 'url',
     }
 
-    if (request.negativePrompt) {
+    // Some Gitee models (e.g. FLUX*) do not support negative_prompt.
+    if (!isFluxModel && request.negativePrompt) {
       requestBody.negative_prompt = request.negativePrompt
     }
 
     if (request.guidanceScale !== undefined) {
-      requestBody.guidance_scale = request.guidanceScale
+      // Qwen Image uses cfg_scale naming (and some deployments reject guidance_scale).
+      if (isQwenModel) requestBody.cfg_scale = request.guidanceScale
+      else requestBody.guidance_scale = request.guidanceScale
+    } else {
+      // Reasonable per-model defaults (match common official examples)
+      if (isQwenModel) requestBody.cfg_scale = 1
+      if (isGlmModel) requestBody.guidance_scale = 1.5
     }
 
     const response = await fetch(GITEE_API_URL, {
