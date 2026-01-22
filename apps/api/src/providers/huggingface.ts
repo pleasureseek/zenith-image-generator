@@ -31,8 +31,9 @@ function parseSeedFromResponse(modelId: string, result: unknown[], fallbackSeed:
 function getCandidateBaseUrls(modelId: string): string[] {
   const primary = HF_SPACES[modelId as keyof typeof HF_SPACES] || HF_SPACES['z-image-turbo']
   // Known mirror space for z-image-turbo. Helps when a space is cold/blocked/deleted.
+  // Note: we only fall back on 404-type provider errors (see isNotFoundProviderError()).
   const fallbacks =
-    modelId === 'z-image-turbo' ? ['https://luca115-z-image-turbo.hf.space'] : ([] as string[])
+    modelId === 'z-image-turbo' ? ['https://mrfakename-z-image-turbo.hf.space'] : ([] as string[])
   return [primary, ...fallbacks].filter(Boolean)
 }
 

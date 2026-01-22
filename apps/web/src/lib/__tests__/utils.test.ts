@@ -68,7 +68,7 @@ describe('isHuggingFaceUrl (tested via behavior)', () => {
   const testUrls = [
     { url: 'https://example.hf.space/file/image.png', expected: true },
     { url: 'https://huggingface.co/datasets/image.png', expected: true },
-    { url: 'https://mrfakename-z-image-turbo.hf.space/img.png', expected: true },
+    { url: 'https://luca115-z-image-turbo.hf.space/img.png', expected: true },
     { url: 'https://example.com/image.png', expected: false },
     { url: 'https://gitee.ai/image.png', expected: false },
   ]

@@ -59,7 +59,7 @@
 
 | 模型 | Space URL |
 |------|-----------|
-| z-image-turbo | `https://mrfakename-z-image-turbo.hf.space` |
+| z-image-turbo | `https://luca115-z-image-turbo.hf.space` |
 | qwen-image-fast | `https://mcp-tools-qwen-image-fast.hf.space` |
 | ovis-image | `https://aidc-ai-ovis-image-7b.hf.space` |
 | flux-1-schnell | `https://black-forest-labs-flux-1-schnell.hf.space` |

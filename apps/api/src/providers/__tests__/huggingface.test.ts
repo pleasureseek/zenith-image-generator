@@ -126,7 +126,7 @@ describe('HuggingFaceProvider', () => {
       await provider.generate(defaultRequest)
 
       // Verify it called the default space URL
-      expect(mockFetch.mock.calls[0][0]).toContain('mrfakename-z-image-turbo.hf.space')
+      expect(mockFetch.mock.calls[0][0]).toContain('luca115-z-image-turbo.hf.space')
     })
 
     it('should include auth token in headers when provided', async () => {
@@ -214,7 +214,7 @@ describe('HuggingFaceProvider', () => {
       })
 
       expect(result.url).toBe(
-        'https://mrfakename-z-image-turbo.hf.space/gradio_api/file=generated.png'
+        'https://luca115-z-image-turbo.hf.space/gradio_api/file=generated.png'
       )
     })
   })

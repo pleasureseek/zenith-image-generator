@@ -44,7 +44,7 @@ describe('OpenAI-compatible routes', () => {
     expect(json.created).toBeTypeOf('number')
     expect(json.data[0]?.url).toBe('https://hf.space/img.png')
 
-    expect(mockFetch.mock.calls[0]?.[0]).toContain('mrfakename-z-image-turbo.hf.space')
+    expect(mockFetch.mock.calls[0]?.[0]).toContain('luca115-z-image-turbo.hf.space')
   })
 
   it('POST /v1/images/generations supports gitee/ model prefix + gitee: token', async () => {

@@ -61,6 +61,8 @@ export function validateScale(scale: number): ValidationResult {
 /** Allowed image host whitelist - based on HF_SPACES and provider configs */
 const ALLOWED_IMAGE_HOSTS = [
   // HuggingFace Spaces (from HF_SPACES in providers.ts)
+  'luca115-z-image-turbo.hf.space',
+  // Mirror (kept for older history items / fallbacks)
   'mrfakename-z-image-turbo.hf.space',
   'mcp-tools-qwen-image-fast.hf.space',
   'aidc-ai-ovis-image-7b.hf.space',

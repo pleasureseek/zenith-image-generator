@@ -85,7 +85,7 @@ describe('validateScale', () => {
 
 describe('isAllowedImageUrl', () => {
   it('should return true for allowed HuggingFace URL', () => {
-    const result = isAllowedImageUrl('https://mrfakename-z-image-turbo.hf.space/image.png')
+    const result = isAllowedImageUrl('https://luca115-z-image-turbo.hf.space/image.png')
     expect(result).toBe(true)
   })
 
